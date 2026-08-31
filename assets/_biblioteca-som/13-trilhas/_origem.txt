@@ -1,0 +1,29 @@
+Camas musicais da peca — papel de cada uma e como obter.
+
+As trilhas NAO acompanham o pacote: musica de terceiro nao se redistribui.
+Status de todas: nao incluida — usar a biblioteca de musicas e sons do
+PROPRIO CapCut (o caminho natural: o app ja esta instalado) ou um banco
+gratuito (Pixabay, Free Music Archive). Escolher pelo PAPEL, nao por nome
+de musica. Antes de anuncio, conferir a licenca — trilha sem licenca nao sobe.
+
+Papeis na peca aprovada (a orquestra completa, tempo a tempo, esta em
+.claude/skills/video-editor-pro/references/orquestracao.md):
+
+  trilha de FUNDO ....... a cama unica da peca: instrumental calmo, volume
+                          baixissimo (~6%), cortada em pedacos com pausas de
+                          proposito sobre o pivo e o aparte; fade-in longo
+                          (a musica materializa, nao "entra").
+  colchao da INTRO ...... cobre as duas janelas de texto-atras do comeco;
+                          volume ~10%, fades de ~3s nas duas pontas.
+  som do APARTE ......... cassette-rewind.mp3 <- export do "Cassette tape,
+                          rewind" da biblioteca do proprio CapCut (procedencia
+                          legitima; ver SETUP passo 8). Revezamento: entra no
+                          vao que a trilha de fundo deixa, no mesmo volume dela.
+
+O nome de arquivo exato que o pipeline procura para cada papel esta no
+cabecalho de engine/scripts/derivar-acabamento.mjs — salve a faixa escolhida
+com esse nome nesta pasta. Faltar trilha e aviso, nao erro: a peca renderiza
+sem a cama e o checar-trilhas.mjs lista o que ficou faltando.
+
+As demais faixas do acervo da fabrica de origem nao entraram na peca aprovada
+e nao acompanham o pacote.

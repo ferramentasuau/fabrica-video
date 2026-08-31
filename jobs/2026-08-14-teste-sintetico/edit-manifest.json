@@ -1,0 +1,18 @@
+{
+  "composition": "CaptionOverlay",
+  "fps": 30,
+  "width": 1080,
+  "height": 1920,
+  "durationInFrames": 300,
+  "brandPreset": "demo",
+  "props": {},
+  "safeZones": true,
+  "output": "jobs/2026-08-14-teste-sintetico/renders/captionoverlay.webm",
+  "_meta": {
+    "objetivo": "alcance",
+    "formato_criativo": "telepatia",
+    "engine_legenda": "remotion",
+    "modo_saida": "hibrida",
+    "aprovador": "aprovador"
+  }
+}

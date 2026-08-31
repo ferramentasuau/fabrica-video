@@ -1,0 +1,18 @@
+{
+  "_leia": "Modelo do .mcp.json para PC novo. Copie para .mcp.json e troque <RAIZ> pelo caminho onde você clonou a fábrica (recomendado: D:\\VIDEO-FACTORY — os docs assumem essa raiz) e <USUARIO> pelo seu usuário do Windows. As duas travas NETWORK_DISABLED/UPLOAD_DISABLED são obrigatórias: sem elas o servidor recusa subir (falha fechada).",
+  "mcpServers": {
+    "vectcut-safe": {
+      "type": "stdio",
+      "command": "<RAIZ>\\tools\\VectCutAPI\\.venv\\Scripts\\python.exe",
+      "args": ["<RAIZ>\\tools\\VectCutAPI\\mcp_server_safe.py"],
+      "env": {
+        "VIDEO_FACTORY_ROOT": "<RAIZ>",
+        "MEDIA_ROOT": "<RAIZ>\\media",
+        "STAGING_ROOT": "<RAIZ>\\staging",
+        "NETWORK_DISABLED": "1",
+        "UPLOAD_DISABLED": "1",
+        "SAFE_CAPCUT_DRAFT_ROOT": "C:\\Users\\<USUARIO>\\AppData\\Local\\CapCut\\User Data\\Projects\\com.lveditor.draft"
+      }
+    }
+  }
+}

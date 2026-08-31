@@ -1,0 +1,36 @@
+{
+  "_comentario": "MODELO de marca do VIDEO-FACTORY. Copie este arquivo como <id>.json, preencha e salve. Campos _comentario* são ignorados pelo motor (a marca é validada por engine/src/lib/brand.ts).",
+  "_comentario_assets": "Caminhos de logo/fonte são RELATIVOS à pasta D:\\VIDEO-FACTORY\\assets\\ — ex.: 'minha-marca/logo.png'. Coloque os arquivos em assets\\<id>\\.",
+
+  "id": "minha-marca",
+  "name": "Nome da Marca",
+
+  "_comentario_handle": "handle = @ do Instagram OU site — vira a linha pequena no fim do vídeo. null = não mostra.",
+  "handle": "@minhamarca",
+
+  "colors": {
+    "_comentario": "bg=fundo | bg2=segunda cor do gradiente (opcional) | primary=destaque (números/CTA) | accent=apoio | text=texto claro | textMuted=texto secundário | onPrimary=texto SOBRE a cor primária (opcional)",
+    "bg": "#0B0B0B",
+    "bg2": "#1A1A1A",
+    "primary": "#FF6600",
+    "accent": "#995500",
+    "text": "#FFFFFF",
+    "textMuted": "#999999",
+    "onPrimary": "#0B0B0B"
+  },
+
+  "fonts": {
+    "_comentario": "title=títulos | body=corpo/labels | numbers=números grandes e CTA (opcional; sem ele usa title). file=null usa fonte do sistema (fallback).",
+    "title": { "family": "Nome Da Fonte", "file": "minha-marca/fonts/titulo-700.woff2", "weight": "700", "fallback": "sans-serif" },
+    "body": { "family": "Nome Da Fonte", "file": "minha-marca/fonts/corpo-400.woff2", "weight": "400", "fallback": "sans-serif" },
+    "numbers": { "family": "Nome Da Fonte", "file": "minha-marca/fonts/black-900.woff2", "weight": "900", "fallback": "sans-serif" }
+  },
+
+  "_comentario_logo": "logo = caminho da imagem em assets\\ OU null (null renderiza o nome da marca como logo-texto — nunca trava).",
+  "logo": null,
+
+  "cta": { "text": "Chamada padrão da marca" },
+
+  "_comentario_safeMargins": "Margens de segurança (px) pra UI do Reels/TikTok não cobrir o conteúdo. Os defaults abaixo são seguros — só mexa se souber por quê.",
+  "safeMargins": { "top": 220, "bottom": 320, "sides": 64 }
+}

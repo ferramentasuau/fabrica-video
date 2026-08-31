@@ -1,0 +1,21 @@
+{
+  "descricao": "Palavra-chave em destaque, paginas curtas de 2-3 palavras",
+  "vectcut": {
+    "font_color": "#FFFFFF",
+    "max_palavras": 3,
+    "track_name": "captions",
+    "font_size": 9,
+    "transform_y": -0.5,
+    "font_size_destaque": 25,
+    "_calibracao": "Régua medida no CapCut 9.1.0.3879 em 1080x1920 (Fase 6, 14/08/2026): 7 = minimalista (aprovado), 15 = confortável, 25 = forte, 40 = destaque máximo, 60 estoura a tela. Limite: caracteres x tamanho <= ~324."
+  },
+  "remotion": {
+    "animacao": "pop",
+    "sombra": true,
+    "cor": "#FFFFFF",
+    "fontSizePx": 84,
+    "maxPalavras": 3,
+    "posY": 1050,
+    "corDestaque": "#FFD700"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "descricao": "Padrao limpo: 3-4 palavras por pagina, sombra tripla, sem tarja",
+  "vectcut": {
+    "font_color": "#FFFFFF",
+    "max_palavras": 4,
+    "track_name": "captions",
+    "font_size": 7,
+    "transform_y": -0.55,
+    "font_size_destaque": 15,
+    "_calibracao": "Régua medida no CapCut 9.1.0.3879 em 1080x1920 (Fase 6, 14/08/2026): 7 = minimalista (aprovado), 15 = confortável, 25 = forte, 40 = destaque máximo, 60 estoura a tela. Limite: caracteres x tamanho <= ~324."
+  },
+  "remotion": {
+    "animacao": "fade-up",
+    "sombra": true,
+    "cor": "#FFFFFF",
+    "fontSizePx": 72,
+    "maxPalavras": 4,
+    "posY": 1100,
+    "corDestaque": "#FFD700"
+  }
+}

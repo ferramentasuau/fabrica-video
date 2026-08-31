@@ -1,0 +1,117 @@
+{
+  "_comentario": "MODELO do job do Módulo Avatar (SETUP.md §11). Copie este arquivo para jobs/<seu-job>/anuncio-avatar.json e preencha. JSON é estrito e não aceita comentário: por isso toda explicação mora em campos que começam com _ , que os scripts ignoram. Pode apagá-los depois de entender o formato.",
+
+  "_quem_le_este_arquivo": [
+    "engine/scripts/build-anuncio-avatar.mjs   — gera as locuções (rota alternativa, ver §11)",
+    "engine/scripts/conferir-verbatim.mjs      — portão obrigatório antes de gastar render",
+    "engine/scripts/montar-anuncio-avatar.mjs  — junta os renders do HeyGen com o áudio",
+    "engine/scripts/_anuncio-avatar.mjs        — módulo compartilhado (valida o job)",
+    "",
+    "Uso: cd D:/VIDEO-FACTORY/engine && node scripts/<script>.mjs ../jobs/<seu-job>/anuncio-avatar.json",
+    "Uma peça só: acrescente --peca <id>"
+  ],
+
+  "_onde_cada_arquivo_mora": [
+    "locuções (MP3, você põe aqui):   assets/<marca>/audio/<peca.pasta>/<trecho.id>.mp3",
+    "renders do HeyGen (MP4, idem):   assets/<marca>/trechos/<peca.pasta>/<trecho.id>.mp4",
+    "peça montada (o script escreve):  output/<marca>/<lote>/<peca.saida>",
+    "",
+    "Os nomes NÃO são livres: o trecho de id T1 procura T1.mp3 e T1.mp4. Baixe o render do",
+    "HeyGen já com o nome certo — o link assinado dele expira em 7 dias."
+  ],
+
+  "_esquema": {
+    "marca": "string. Slug da marca. Define as pastas de áudio, de trechos e de saída. Se faltar, os scripts usam \"demo\".",
+    "lote": "string. Nome da rodada. Usado só no caminho de saída: output/<marca>/<lote>/. Sugestão: AAAA-MM-DD-assunto.",
+    "pecas": "array. Uma entrada por vídeo final.",
+    "pecas[].id": "string ou número. Identificador curto da peça; é o que você passa em --peca.",
+    "pecas[].titulo": "string. Só para você se achar nos logs. Não vira arquivo.",
+    "pecas[].pasta": "string. Nome da subpasta desta peça dentro de assets/<marca>/audio/ e de assets/<marca>/trechos/.",
+    "pecas[].saida": "string. Nome do arquivo final (com .mp4) escrito em output/<marca>/<lote>/.",
+    "pecas[].look": "string. OBRIGATÓRIO — o avatar_id do look aprovado no HeyGen que você vai usar nesta peça. Sem ele os scripts param na hora. Ele não é chave de API: é o identificador do avatar, e você o vê listando os seus avatares pelo MCP do HeyGen.",
+    "pecas[].trechos": "array. Os pedaços da fala, na ordem em que entram na peça.",
+    "pecas[].trechos[].id": "string. Vira o nome do arquivo: T1 -> T1.mp3 e T1.mp4. Use T1, T2, T3…",
+    "pecas[].trechos[].texto": "string. O que a locução vai falar, com a pontuação que você quer ouvir — as pausas nascem dela. Teto de 85 palavras: acima disso os scripts avisam, e acima de ~120 a TTS engole pedaço.",
+    "pecas[].trechos[].criticas": "array de strings, OPCIONAL. Palavras que o conferir-verbatim reisola em janelas curtas se não as ouvir de primeira. Sirva aqui o que some fácil: monossílabo átono, conjunção de uma letra, número que muda o sentido da oferta."
+  },
+
+  "_regras_que_valem_dinheiro": [
+    "4 TRECHOS, NÃO 8 BLOCOS CURTOS. Roteiro picado soa entrecortado e denuncia a voz de IA. Deixe cada trecho fluir e confie na pontuação para as pausas.",
+    "TEXTO IDÊNTICO NÃO GERA DUAS VEZES. O cache é por hash do texto — repetir palavra por palavra o trecho de oferta e o de fecho entre as peças do lote economiza gerações. Mudar uma vírgula regera, que é o correto.",
+    "O PORTÃO VEM ANTES DO RENDER. Rode sempre conferir-verbatim antes de mandar renderizar no HeyGen: conferir é grátis, render é crédito. Ele exige o Whisper instalado (SETUP.md, passo 4).",
+    "NADA DE SEGREDO AQUI DENTRO. Este arquivo é versionado. Chave de API nunca; o ID da voz clonada vai na variável de ambiente VOZ_ID, não no job."
+  ],
+
+  "marca": "demo",
+  "lote": "2026-09-01-lote-exemplo",
+
+  "pecas": [
+    {
+      "_comentario": "Peça 1 — exemplo completo e preenchível. Troque textos, pasta, saída e look.",
+      "id": "P1",
+      "titulo": "Exemplo · travar na hora de gravar",
+      "pasta": "p1-travar",
+      "saida": "p1-travar.mp4",
+      "look": "<COLE-AQUI-O-avatar-id-DO-SEU-LOOK-APROVADO>",
+      "trechos": [
+        {
+          "id": "T1",
+          "_papel": "gancho — os 3 primeiros segundos decidem se a pessoa fica",
+          "texto": "Se você já tentou aparecer em vídeo e travou na hora de ligar a câmera, este próximo minuto é para você. Não é sobre vergonha de aparecer. É sobre não ter um sistema."
+        },
+        {
+          "id": "T2",
+          "_papel": "problema — nomear a dor com a palavra de quem sente",
+          "texto": "A maioria grava, assiste, odeia, apaga e recomeça. Perde a tarde inteira e não publica nada. O problema não é o seu rosto, nem a sua voz: é gravar sem roteiro, sem ordem e sem um lugar certo para cada pedaço."
+        },
+        {
+          "id": "T3",
+          "_papel": "oferta — este trecho costuma ser IGUAL em todas as peças do lote, e o cache reaproveita",
+          "texto": "É exatamente isso que o método organiza. Você escreve o roteiro em quatro trechos, grava uma vez só, e a montagem acontece sozinha. O que levava uma tarde passa a levar vinte minutos.",
+          "_comentario_criticas": "\"vinte minutos\" é número que muda o sentido da oferta: se a locução engolir, a promessa muda. Por isso entra em criticas.",
+          "criticas": ["vinte minutos"]
+        },
+        {
+          "id": "T4",
+          "_papel": "fecho — chamada única, sem empilhar pedidos",
+          "texto": "Se isso faz sentido para você, o link está aqui embaixo. Comece hoje mesmo pela sua primeira peça.",
+          "criticas": ["hoje"]
+        }
+      ]
+    },
+    {
+      "_comentario": "Peça 2 — mesma oferta e mesmo fecho, gancho e problema diferentes. Repare que T3 e T4 são idênticos aos da peça 1, palavra por palavra: o cache por hash não gera de novo.",
+      "id": "P2",
+      "titulo": "Exemplo · a tarde que virou nada",
+      "pasta": "p2-tarde",
+      "saida": "p2-tarde.mp4",
+      "look": "<COLE-AQUI-O-avatar-id-DO-SEU-LOOK-APROVADO>",
+      "trechos": [
+        {
+          "id": "T1",
+          "_papel": "gancho",
+          "texto": "Três horas gravando, quarenta arquivos na pasta, e nenhum vídeo publicado. Se você reconheceu a sua semana nessa frase, fica comigo até o fim."
+        },
+        {
+          "id": "T2",
+          "_papel": "problema",
+          "texto": "Regravar não conserta roteiro ruim. Toda vez que você aperta o botão sem saber onde a fala começa e onde ela termina, o resultado é mais material bruto e menos peça pronta.",
+          "_comentario_criticas": "\"e\" enfático solto entre dois verbos some fácil no meio de uma janela larga; marcado aqui, o script reisola antes de acusar sumiço.",
+          "criticas": ["e"]
+        },
+        {
+          "id": "T3",
+          "_papel": "oferta (idêntico ao da peça 1 — de propósito)",
+          "texto": "É exatamente isso que o método organiza. Você escreve o roteiro em quatro trechos, grava uma vez só, e a montagem acontece sozinha. O que levava uma tarde passa a levar vinte minutos.",
+          "criticas": ["vinte minutos"]
+        },
+        {
+          "id": "T4",
+          "_papel": "fecho (idêntico ao da peça 1 — de propósito)",
+          "texto": "Se isso faz sentido para você, o link está aqui embaixo. Comece hoje mesmo pela sua primeira peça.",
+          "criticas": ["hoje"]
+        }
+      ]
+    }
+  ]
+}

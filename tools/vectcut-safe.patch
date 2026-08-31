@@ -1,0 +1,1496 @@
+diff --git a/UPSTREAM_COMMIT.txt b/UPSTREAM_COMMIT.txt
+new file mode 100644
+index 0000000..a8b7f57
+--- /dev/null
++++ b/UPSTREAM_COMMIT.txt
+@@ -0,0 +1,7 @@
++﻿UPSTREAM CONGELADO — VectCutAPI
++remote: https://github.com/sun-guannan/VectCutAPI.git
++commit: 7fed5776e6bcc886d615ce07cfec5eaccd547b68
++data do commit: 2026-08-09T23:36:10+08:00
++congelado em: 14/08/2026 (Fase 2 da SPEC)
++branch de trabalho seguro: safe-local
++Regra: nunca executar capcut_server.py nem mcp_server.py originais.
+diff --git a/add_audio_track.py b/add_audio_track.py
+index 92dd41a..11fab11 100644
+--- a/add_audio_track.py
++++ b/add_audio_track.py
+@@ -1,7 +1,7 @@
+ # 导入必要的模块
+ import pyJianYingDraft as draft
+ import time
+-from util import generate_draft_url, url_to_hash, build_draft_asset_path
++from util import generate_draft_url, url_to_hash, build_draft_asset_path, material_ext
+ from typing import Optional, Dict, Tuple, List
+ from pyJianYingDraft import exceptions, Audio_scene_effect_type, Tone_effect_type, Speech_to_song_type, CapCut_Voice_filters_effect_type,CapCut_Voice_characters_effect_type,CapCut_Speech_to_song_effect_type, trange
+ from create_draft import get_or_create_draft
+@@ -74,7 +74,7 @@ def add_audio_track(
+     # Download audio to local
+     # local_audio_path = download_audio(audio_url, draft_dir)
+ 
+-    material_name = f"audio_{url_to_hash(audio_url)}.mp3"  # Use original filename + timestamp + fixed mp3 extension
++    material_name = f"audio_{url_to_hash(audio_url)}{material_ext(audio_url, '.mp3')}"  # [safe-local] extensao segue a origem
+     
+     # Build draft_audio_path
+     draft_audio_path = None
+diff --git a/add_image_impl.py b/add_image_impl.py
+index 299eb60..da756db 100644
+--- a/add_image_impl.py
++++ b/add_image_impl.py
+@@ -2,7 +2,7 @@ import uuid
+ import pyJianYingDraft as draft
+ import time
+ from settings.local import IS_CAPCUT_ENV
+-from util import generate_draft_url, url_to_hash, build_draft_asset_path
++from util import generate_draft_url, url_to_hash, build_draft_asset_path, material_ext
+ from pyJianYingDraft import trange, Clip_settings
+ from typing import Optional, Dict
+ from pyJianYingDraft import exceptions
+@@ -109,7 +109,7 @@ def add_image_impl(
+         script.add_track(draft.Track_type.video, relative_index=relative_index)
+     
+     # Generate material_name but don't download the image
+-    material_name = f"image_{url_to_hash(image_url)}.png"
++    material_name = f"image_{url_to_hash(image_url)}{material_ext(image_url, '.png')}"  # [safe-local] extensao segue a origem
+     
+     # Build draft_image_path
+     draft_image_path = None
+diff --git a/add_video_track.py b/add_video_track.py
+index 274f617..89fa936 100644
+--- a/add_video_track.py
++++ b/add_video_track.py
+@@ -1,7 +1,7 @@
+ import pyJianYingDraft as draft
+ import time
+ from settings.local import IS_CAPCUT_ENV
+-from util import generate_draft_url, url_to_hash, build_draft_asset_path
++from util import generate_draft_url, url_to_hash, build_draft_asset_path, material_ext
+ from pyJianYingDraft import trange, Clip_settings
+ from typing import Optional, Dict
+ from pyJianYingDraft import exceptions
+@@ -117,7 +117,7 @@ def add_video_track(
+         # video_duration = duration_result["output"]
+     
+     # Generate local filename
+-    material_name = f"video_{url_to_hash(video_url)}.mp4"
++    material_name = f"video_{url_to_hash(video_url)}{material_ext(video_url, '.mp4')}"  # [safe-local] extensao segue a origem
+     # local_video_path = download_video(video_url, draft_dir)
+     
+     # Build draft_video_path
+diff --git a/mcp_server_safe.py b/mcp_server_safe.py
+new file mode 100644
+index 0000000..8a05c60
+--- /dev/null
++++ b/mcp_server_safe.py
+@@ -0,0 +1,430 @@
++#!/usr/bin/env python3
++"""VectCut SEGURO — servidor MCP stdio para criar rascunhos do CapCut 100% local.
++
++Ordem de inicialização (não mude — é o contrato de segurança):
++  1. valida config por env (falha FECHADA se ausente);
++  2. instala o kill-switch de rede (safe/no_network.py);
++  3. só então importa os módulos de draft do upstream.
++
++Fora do processo, para sempre: capcut_server.py, mcp_server.py original,
++oss.py, downloader.py, save_draft_impl.py. Nenhuma resposta contém URL.
++Logs vão para stderr; stdout pertence ao protocolo MCP — os print() do
++upstream são redirecionados em toda chamada.
++"""
++import contextlib
++import io
++import json
++import logging
++import os
++import subprocess
++import sys
++from typing import Optional
++
++REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
++sys.path.insert(0, REPO_ROOT)
++
++logging.basicConfig(stream=sys.stderr, level=logging.INFO, format="[vectcut-safe] %(message)s")
++log = logging.getLogger("vectcut-safe")
++
++# ---- 1. config (falha fechada) ----
++from safe.paths import (  # noqa: E402
++    CaminhoRecusado, carregar_config, novo_draft_id, validar_draft_id, validar_leitura,
++)
++
++try:
++    CONFIG = carregar_config()
++except Exception as e:
++    print(f"[vectcut-safe] RECUSANDO INICIAR: {e}", file=sys.stderr)
++    sys.exit(2)
++
++# ---- 2. rede morta ----
++from safe import no_network  # noqa: E402
++no_network.install()
++
++# ---- 3. upstream (só os módulos locais auditados) ----
++import pyJianYingDraft as draft_lib  # noqa: E402
++from draft_cache import DRAFT_CACHE, update_cache  # noqa: E402
++from add_text_impl import add_text_impl  # noqa: E402
++from add_video_track import add_video_track  # noqa: E402
++from add_audio_track import add_audio_track  # noqa: E402
++from add_image_impl import add_image_impl  # noqa: E402
++from add_subtitle_impl import add_subtitle_impl  # noqa: E402
++from add_effect_impl import add_effect_impl  # noqa: E402
++from add_video_keyframe_impl import add_video_keyframe_impl  # noqa: E402
++from safe import draft_io  # noqa: E402
++
++from mcp.server import MCPServer  # noqa: E402
++
++mcp = MCPServer("vectcut-safe")
++
++_CONECTORES = {"e", "de", "da", "do", "das", "dos", "que", "para", "pra", "com",
++               "em", "a", "o", "as", "os", "um", "uma", "na", "no", "mas", "ou", "se", "por"}
++
++# Régua de tamanho de texto — calibrada no CapCut 9.1.0.3879, canvas 1080x1920,
++# no teste da Fase 6 (14/08/2026). O aprovador publicou cinco blocos e olhou:
++#   7  -> pequeno e minimalista (aprovado por ele como base)
++#   15 -> leitura confortável
++#   25 -> leitura forte
++#   40 -> destaque; "40 teste" (8 caracteres) enche quase toda a largura
++#   60 -> ESTOUROU a tela nos dois lados ("60 teste" saiu como "0 test")
++# Daí o limite prático: caracteres x tamanho <= ~30% da largura do canvas.
++# 8 x 40 = 320 passa raspando em 1080 (0,30 x 1080 = 324); 8 x 60 = 480 estoura.
++# É heurística de UMA fonte (a do sistema) — serve de aviso, nunca de recusa.
++_LARGURA_CANVAS = 1080
++_LIMITE_LARGURA_TEXTO = 0.30
++
++
++def _aviso_largura(texto: str, font_size: float) -> Optional[str]:
++    """Devolve aviso se o texto tende a estourar a largura; None se couber."""
++    limite = _LIMITE_LARGURA_TEXTO * _LARGURA_CANVAS
++    produto = len(texto) * float(font_size)
++    if produto <= limite:
++        return None
++    return (f"pode estourar a largura: {len(texto)} caracteres x tamanho {font_size:g} "
++            f"= {produto:g}, acima do limite ~{limite:g} medido no CapCut 9.1.0.3879 "
++            f"em 1080x1920. Reduza o tamanho ou quebre o texto.")
++
++
++def _quieto(fn, *args, **kwargs):
++    """Roda um impl do upstream com o stdout sequestrado — protege o protocolo MCP."""
++    lixo = io.StringIO()
++    with contextlib.redirect_stdout(lixo):
++        resultado = fn(*args, **kwargs)
++    ruido = lixo.getvalue().strip()
++    if ruido:
++        log.info("stdout do upstream (redirecionado): %s", ruido[:200])
++    return resultado
++
++
++def _erro(e: Exception) -> dict:
++    return {"ok": False, "erro": type(e).__name__, "mensagem": str(e)}
++
++
++def _exigir_draft(draft_id: str):
++    validar_draft_id(draft_id)
++    if draft_id not in DRAFT_CACHE:
++        raise CaminhoRecusado(
++            f"draft {draft_id} não está na sessão — crie com create_draft ou confira o id"
++        )
++    return DRAFT_CACHE[draft_id]
++
++
++def _ffprobe(caminho: str) -> dict:
++    saida = subprocess.run(
++        ["ffprobe", "-v", "error", "-print_format", "json", "-show_format", "-show_streams", caminho],
++        capture_output=True, text=True, timeout=60,
++    )
++    if saida.returncode != 0:
++        raise RuntimeError(f"ffprobe falhou: {saida.stderr[:200]}")
++    return json.loads(saida.stdout)
++
++
++def _duracao(caminho: str) -> float:
++    info = _ffprobe(caminho)
++    d = float(info.get("format", {}).get("duration", 0) or 0)
++    if d <= 0:
++        raise RuntimeError(f"não deu para medir a duração de {os.path.basename(caminho)}")
++    return d
++
++
++def _validar_janela(start: float, end: Optional[float], nome: str = "trecho"):
++    if start < 0:
++        raise CaminhoRecusado(f"{nome}: start negativo")
++    if end is not None and end <= start:
++        raise CaminhoRecusado(f"{nome}: end ({end}) precisa ser maior que start ({start})")
++
++
++# ------------------------------------------------------------------ ferramentas
++
++@mcp.tool()
++def create_draft(width: int = 1080, height: int = 1920) -> dict:
++    """Cria um rascunho novo do CapCut em memória. Devolve o draft_id (formato VF_...)."""
++    try:
++        if not (16 <= width <= 8192 and 16 <= height <= 8192):
++            raise CaminhoRecusado("resolução fora da faixa 16..8192")
++        draft_id = novo_draft_id()
++        script = draft_lib.Script_file(width, height)
++        update_cache(draft_id, script)
++        return {"ok": True, "draft_id": draft_id, "width": width, "height": height}
++    except Exception as e:
++        return _erro(e)
++
++
++@mcp.tool()
++def add_video_local(path: str, draft_id: str, start: float = 0, end: Optional[float] = None,
++                    target_start: float = 0, speed: float = 1.0, volume: float = 1.0,
++                    track_name: str = "main", scale_x: float = 1.0, scale_y: float = 1.0,
++                    transform_x: float = 0, transform_y: float = 0,
++                    transition: Optional[str] = None, transition_duration: float = 0.5) -> dict:
++    """Adiciona um vídeo LOCAL (dentro das raízes permitidas) ao rascunho."""
++    try:
++        _exigir_draft(draft_id)
++        real = validar_leitura(path, "video", CONFIG)
++        _validar_janela(start, end, "vídeo")
++        if not (0.1 <= speed <= 10):
++            raise CaminhoRecusado("speed fora da faixa 0.1..10")
++        if not (0 <= volume <= 2):
++            raise CaminhoRecusado("volume fora da faixa 0..2")
++        dur = _duracao(real)
++        fim = min(end, dur) if end is not None else dur
++        _quieto(add_video_track, video_url=real, draft_id=draft_id, start=start, end=fim,
++                target_start=target_start, duration=dur, speed=speed, volume=volume,
++                track_name=track_name, scale_x=scale_x, scale_y=scale_y,
++                transform_x=transform_x, transform_y=transform_y,
++                transition=transition, transition_duration=transition_duration)
++        return {"ok": True, "draft_id": draft_id, "arquivo": os.path.basename(real),
++                "duracao_fonte_s": round(dur, 3), "trecho": [start, round(fim, 3)]}
++    except Exception as e:
++        return _erro(e)
++
++
++@mcp.tool()
++def add_audio_local(path: str, draft_id: str, start: float = 0, end: Optional[float] = None,
++                    target_start: float = 0, volume: float = 1.0,
++                    track_name: str = "audio_main", speed: float = 1.0) -> dict:
++    """Adiciona um áudio LOCAL (trilha, locução ou efeito sonoro) ao rascunho."""
++    try:
++        _exigir_draft(draft_id)
++        real = validar_leitura(path, "audio", CONFIG)
++        _validar_janela(start, end, "áudio")
++        if not (0 <= volume <= 2):
++            raise CaminhoRecusado("volume fora da faixa 0..2")
++        dur = _duracao(real)
++        fim = min(end, dur) if end is not None else dur
++        _quieto(add_audio_track, audio_url=real, draft_id=draft_id, start=start, end=fim,
++                target_start=target_start, volume=volume, track_name=track_name,
++                speed=speed, duration=dur)
++        return {"ok": True, "draft_id": draft_id, "arquivo": os.path.basename(real),
++                "duracao_fonte_s": round(dur, 3)}
++    except Exception as e:
++        return _erro(e)
++
++
++@mcp.tool()
++def add_image_local(path: str, draft_id: str, start: float = 0, end: float = 3.0,
++                    track_name: str = "image_overlay", scale_x: float = 1.0, scale_y: float = 1.0,
++                    transform_x: float = 0, transform_y: float = 0,
++                    animation: Optional[str] = None) -> dict:
++    """Adiciona uma imagem LOCAL ao rascunho, exibida de start a end (segundos)."""
++    try:
++        _exigir_draft(draft_id)
++        real = validar_leitura(path, "image", CONFIG)
++        _validar_janela(start, end, "imagem")
++        _quieto(add_image_impl, image_url=real, draft_id=draft_id, start=start, end=end,
++                track_name=track_name, scale_x=scale_x, scale_y=scale_y,
++                transform_x=transform_x, transform_y=transform_y, animation=animation)
++        return {"ok": True, "draft_id": draft_id, "arquivo": os.path.basename(real)}
++    except Exception as e:
++        return _erro(e)
++
++
++@mcp.tool()
++def add_text(text: str, start: float, end: float, draft_id: str,
++             font_size: float = 8.0, font_color: str = "#ffffff",
++             transform_x: float = 0, transform_y: float = -0.8,
++             track_name: str = "text_main", border_width: float = 0.0,
++             border_color: str = "#000000", shadow_enabled: bool = True,
++             font: Optional[str] = None) -> dict:
++    """Adiciona texto editável ao rascunho. transform_y -1..1 (negativo = mais baixo)."""
++    try:
++        _exigir_draft(draft_id)
++        if not text or not text.strip():
++            raise CaminhoRecusado("texto vazio")
++        _validar_janela(start, end, "texto")
++        _quieto(add_text_impl, text=text, start=start, end=end, draft_id=draft_id,
++                font_size=font_size, font_color=font_color, transform_x=transform_x,
++                transform_y=transform_y, track_name=track_name, border_width=border_width,
++                border_color=border_color, shadow_enabled=shadow_enabled, font=font)
++        r = {"ok": True, "draft_id": draft_id, "texto": text[:60], "janela": [start, end]}
++        aviso = _aviso_largura(text, font_size)
++        if aviso:
++            r["aviso"] = aviso
++        return r
++    except Exception as e:
++        return _erro(e)
++
++
++@mcp.tool()
++def add_subtitle_local(srt_path: str, draft_id: str, time_offset: float = 0,
++                       font_size: float = 6.0, font_color: str = "#ffffff",
++                       transform_y: float = -0.7, track_name: str = "subtitle") -> dict:
++    """Importa um arquivo .srt LOCAL como legendas editáveis."""
++    try:
++        _exigir_draft(draft_id)
++        real = validar_leitura(srt_path, "subtitle", CONFIG)
++        _quieto(add_subtitle_impl, srt_path=real, draft_id=draft_id, time_offset=time_offset,
++                font_size=font_size, font_color=font_color, transform_y=transform_y,
++                track_name=track_name)
++        return {"ok": True, "draft_id": draft_id, "srt": os.path.basename(real)}
++    except Exception as e:
++        return _erro(e)
++
++
++@mcp.tool()
++def add_dynamic_captions(draft_id: str, words: list, max_palavras: int = 4,
++                         font_size: float = 9.0, font_color: str = "#ffffff",
++                         transform_y: float = -0.55, track_name: str = "captions",
++                         font_size_destaque: Optional[float] = None) -> dict:
++    """Legenda dinâmica por páginas de sentido a partir de palavras cronometradas.
++
++    words: [{"text": str, "start": s, "end": s, "emphasis": "normal"|"keyword"}].
++    Quebra em páginas de até max_palavras, fechando sempre em pontuação forte e
++    nunca em conectivo. Sem tarja de fundo (regra da casa) — contraste via sombra.
++
++    font_size_destaque: se informado, a página que contiver uma palavra marcada
++    como "keyword" sai NESSE tamanho. Variar o tamanho entre páginas é o que dá
++    dinamismo às frases importantes — decisão do aprovador na Fase 6 (14/08/2026),
++    olhando a régua de tamanhos no CapCut. Sem ele, todas as páginas saem iguais.
++    """
++    try:
++        _exigir_draft(draft_id)
++        if not isinstance(words, list) or not words:
++            raise CaminhoRecusado("words precisa ser uma lista não vazia")
++        paginas, atual = [], []
++        for w in words:
++            t, s, e = str(w.get("text", "")).strip(), float(w.get("start", -1)), float(w.get("end", -1))
++            if not t or s < 0 or e <= s:
++                raise CaminhoRecusado(f"palavra inválida: {w}")
++            chave = str(w.get("emphasis", "normal")).lower() == "keyword"
++            atual.append((t, s, e, chave))
++            fecha_pont = t[-1] in ".!?…"
++            cheia = len(atual) >= max_palavras and t.lower().strip(".,!?…") not in _CONECTORES
++            if fecha_pont or cheia:
++                paginas.append(atual)
++                atual = []
++        if atual:
++            if len(atual) == 1 and paginas:
++                paginas[-1].extend(atual)  # órfã de 1 palavra é absorvida
++            else:
++                paginas.append(atual)
++        avisos, destacadas = [], 0
++        for pagina in paginas:
++            texto = " ".join(p[0] for p in pagina)
++            tem_chave = any(p[3] for p in pagina)
++            tamanho = font_size_destaque if (tem_chave and font_size_destaque) else font_size
++            if tem_chave and font_size_destaque:
++                destacadas += 1
++            _quieto(add_text_impl, text=texto, start=pagina[0][1], end=pagina[-1][2],
++                    draft_id=draft_id, font_size=tamanho, font_color=font_color,
++                    transform_y=transform_y, track_name=track_name,
++                    shadow_enabled=True, background_alpha=0.0)
++            aviso = _aviso_largura(texto, tamanho)
++            if aviso:
++                avisos.append(f'"{texto}" — {aviso}')
++        r = {"ok": True, "draft_id": draft_id, "paginas": len(paginas),
++             "limitacao": "destaque palavra-a-palavra dentro da página não é editável no draft; "
++                          "para destaque fino use o motor remotion"}
++        if font_size_destaque:
++            r["paginas_em_destaque"] = destacadas
++        if avisos:
++            r["avisos_de_largura"] = avisos
++        return r
++    except Exception as e:
++        return _erro(e)
++
++
++@mcp.tool()
++def add_effect(draft_id: str, effect_type: str, effect_category: str = "scene",
++               start: float = 0, end: float = 3.0, track_name: str = "effect_01") -> dict:
++    """Aplica um efeito do CapCut. effect_category: 'scene' ou 'character'."""
++    try:
++        _exigir_draft(draft_id)
++        if effect_category not in ("scene", "character"):
++            raise CaminhoRecusado("effect_category precisa ser 'scene' ou 'character'")
++        _validar_janela(start, end, "efeito")
++        try:
++            _quieto(add_effect_impl, effect_type=effect_type, effect_category=effect_category,
++                    start=start, end=end, draft_id=draft_id, track_name=track_name)
++        except (KeyError, AttributeError, ValueError) as e:
++            # correção obrigatória da SPEC: erro de catálogo vira mensagem acionável,
++            # nunca falha silenciosa
++            raise RuntimeError(
++                f"efeito '{effect_type}' não existe no catálogo {effect_category} "
++                f"da versão vendorizada ({e}) — confira o nome exato no CapCut"
++            )
++        return {"ok": True, "draft_id": draft_id, "efeito": effect_type}
++    except Exception as e:
++        return _erro(e)
++
++
++@mcp.tool()
++def add_keyframes(draft_id: str, track_name: str = "main", property_type: str = "alpha",
++                  keyframes: Optional[list] = None) -> dict:
++    """Adiciona keyframes a um segmento. keyframes: [{"time": s, "value": "0.5"}]."""
++    try:
++        _exigir_draft(draft_id)
++        if not keyframes:
++            raise CaminhoRecusado("lista de keyframes vazia")
++        for kf in keyframes:
++            t = float(kf.get("time", -1))
++            if t < 0:
++                raise CaminhoRecusado(f"keyframe com tempo negativo: {kf}")
++            _quieto(add_video_keyframe_impl, draft_id=draft_id, track_name=track_name,
++                    property_type=property_type, time=t, value=str(kf.get("value", "1.0")))
++        return {"ok": True, "draft_id": draft_id, "keyframes": len(keyframes)}
++    except Exception as e:
++        return _erro(e)
++
++
++@mcp.tool()
++def inspect_media(path: str) -> dict:
++    """Lê metadados técnicos (ffprobe) de uma mídia LOCAL dentro das raízes permitidas."""
++    try:
++        real = None
++        for tipo in ("video", "audio", "image"):
++            try:
++                real = validar_leitura(path, tipo, CONFIG)
++                break
++            except CaminhoRecusado as e:
++                ultimo = e
++        if real is None:
++            raise ultimo
++        info = _ffprobe(real)
++        fmt = info.get("format", {})
++        streams = [{
++            "tipo": s.get("codec_type"), "codec": s.get("codec_name"),
++            "largura": s.get("width"), "altura": s.get("height"),
++            "sample_rate": s.get("sample_rate"), "canais": s.get("channels"),
++        } for s in info.get("streams", [])]
++        return {"ok": True, "arquivo": os.path.basename(real),
++                "duracao_s": float(fmt.get("duration", 0) or 0),
++                "tamanho_bytes": int(fmt.get("size", 0) or 0), "streams": streams}
++    except Exception as e:
++        return _erro(e)
++
++
++@mcp.tool()
++def save_draft_to_staging(draft_id: str) -> dict:
++    """Materializa o rascunho em staging\\<draft_id>. Nunca sobrescreve destino."""
++    try:
++        script = _exigir_draft(draft_id)
++        return draft_io.salvar_em_staging(draft_id, script, CONFIG, REPO_ROOT)
++    except Exception as e:
++        return _erro(e)
++
++
++@mcp.tool()
++def validate_draft(draft_id: str) -> dict:
++    """Valida a estrutura do rascunho salvo em staging (JSONs, assets, marker)."""
++    try:
++        return draft_io.validar_draft(draft_id, CONFIG)
++    except Exception as e:
++        return _erro(e)
++
++
++@mcp.tool()
++def publish_draft_to_capcut(draft_id: str, confirm: bool = False) -> dict:
++    """Publica um draft validado na pasta real do CapCut. TRAVADO até a Fase 6:
++    exige SAFE_CAPCUT_DRAFT_ROOT no ambiente, confirm=true, CapCut fechado,
++    destino inexistente e backup automático. Nunca sobrescreve nada."""
++    try:
++        script = DRAFT_CACHE.get(draft_id)
++        backups = os.path.join(CONFIG["root"], "backups", "capcut")
++        return draft_io.publicar_no_capcut(draft_id, script, CONFIG, confirm, backups)
++    except Exception as e:
++        return _erro(e)
++
++
++if __name__ == "__main__":
++    log.info("iniciando (stdio) — raiz=%s staging=%s", CONFIG["root"], CONFIG["staging"])
++    mcp.run()
+diff --git a/pyJianYingDraft/script_file.py b/pyJianYingDraft/script_file.py
+index c6d590d..8227e66 100644
+--- a/pyJianYingDraft/script_file.py
++++ b/pyJianYingDraft/script_file.py
+@@ -500,6 +500,7 @@ class Script_file:
+         if style_reference is None and clip_settings is None:
+             raise ValueError("未提供样式参考时请提供`clip_settings`参数")
+ 
++        font_type = None  # fix safe-local: era variável livre — sem font, NameError no closure abaixo
+         if font:
+             try:
+                 font_type = getattr(Font_type, font)
+diff --git a/requirements-safe.in b/requirements-safe.in
+new file mode 100644
+index 0000000..456b639
+--- /dev/null
++++ b/requirements-safe.in
+@@ -0,0 +1,9 @@
++# Dependências do CAMINHO SEGURO — deliberadamente mínimas.
++# Fora, de propósito: flask (servidor HTTP) e oss2 (upload cloud).
++# requests entra SÓ para satisfazer o import de topo dos impls do upstream
++# (add_subtitle_impl.py:6); o kill-switch de socket garante que nenhuma
++# conexão é possível — ver safe/no_network.py e o teste de unidade.
++mcp>=1.0.0
++imageio
++psutil
++requests
+diff --git a/requirements-safe.txt b/requirements-safe.txt
+new file mode 100644
+index 0000000..acb3145
+--- /dev/null
++++ b/requirements-safe.txt
+@@ -0,0 +1,38 @@
++﻿annotated-types==0.8.0
++anyio==4.14.2
++attrs==26.1.0
++certifi==2026.7.22
++cffi==2.1.1
++charset-normalizer==3.5.0
++click==8.4.2
++colorama==0.4.6
++cryptography==50.0.0
++h11==0.16.0
++httpcore2==2.10.0
++httpx2==2.10.0
++idna==3.18
++ImageIO==2.37.4
++jsonschema==4.26.0
++jsonschema-specifications==2025.9.1
++mcp==2.0.0
++mcp-types==2.0.0
++numpy==2.5.2
++opentelemetry-api==1.44.0
++pillow==12.3.0
++psutil==7.2.2
++pycparser==3.0
++pydantic==2.13.4
++pydantic_core==2.46.4
++PyJWT==2.13.0
++python-multipart==0.0.32
++pywin32==312
++referencing==0.37.0
++requests==2.34.2
++rpds-py==2026.6.3
++sse-starlette==3.4.8
++starlette==1.6.0
++truststore==0.10.4
++typing-inspection==0.4.4
++typing_extensions==4.16.0
++urllib3==2.7.0
++uvicorn==0.52.3
+diff --git a/safe/__init__.py b/safe/__init__.py
+new file mode 100644
+index 0000000..0dea8dc
+--- /dev/null
++++ b/safe/__init__.py
+@@ -0,0 +1,2 @@
++# Pacote do caminho seguro do VectCut.
++# Regra da casa: nada aqui pode depender de rede, OSS ou do servidor HTTP original.
+diff --git a/safe/draft_io.py b/safe/draft_io.py
+new file mode 100644
+index 0000000..347084c
+--- /dev/null
++++ b/safe/draft_io.py
+@@ -0,0 +1,234 @@
++"""Gravação, validação e publicação de drafts — reimplementação segura.
++
++Substitui save_draft_impl.py do upstream, que: (1) apaga destino existente com
++rmtree, (2) baixa mídia da internet em ThreadPool, (3) sobe zip para OSS e
++(4) consulta um endpoint remoto. Aqui: destino existente = ERRO, mídia é
++sempre cópia local, e publicação no CapCut é operação separada com trava.
++"""
++import hashlib
++import json
++import os
++import shutil
++import subprocess
++import sys
++from datetime import datetime
++
++from .paths import CaminhoRecusado, validar_draft_id
++
++MARKER = ".vf_marker.json"
++
++
++class DraftErro(RuntimeError):
++    pass
++
++
++def _log(msg: str) -> None:
++    print(f"[draft_io] {msg}", file=sys.stderr)
++
++
++def _sha256(path: str) -> str:
++    h = hashlib.sha256()
++    with open(path, "rb") as f:
++        for bloco in iter(lambda: f.read(1 << 20), b""):
++            h.update(bloco)
++    return h.hexdigest()
++
++
++def _tipo_asset(material) -> str:
++    mt = getattr(material, "material_type", "")
++    if mt == "photo":
++        return "image"
++    if mt == "video":
++        return "video"
++    return "audio"
++
++
++def _materiais(script):
++    for video in getattr(script.materials, "videos", []) or []:
++        yield video
++    for audio in getattr(script.materials, "audios", []) or []:
++        yield audio
++
++
++def salvar_em_staging(draft_id: str, script, config: dict, repo_root: str) -> dict:
++    """Materializa o draft do cache em staging\\<draft_id>. Nunca sobrescreve."""
++    validar_draft_id(draft_id)
++    from draft_profiles import get_draft_profile, write_profile_content
++
++    staging = config["staging"]
++    os.makedirs(staging, exist_ok=True)
++    draft_dir = os.path.join(staging, draft_id)
++    if os.path.exists(draft_dir):
++        raise DraftErro(
++            f"destino já existe e NÃO será sobrescrito: {draft_dir} — gere um novo draft_id"
++        )
++
++    profile = get_draft_profile()
++    template_src = os.path.join(repo_root, profile.template_dir)
++    if not os.path.isdir(template_src):
++        raise DraftErro(f"template do perfil não encontrado: {template_src}")
++
++    try:
++        shutil.copytree(template_src, draft_dir)
++
++        copiados = []
++        for material in _materiais(script):
++            origem = getattr(material, "remote_url", None)
++            if not origem:
++                continue  # material sem arquivo (ex.: texto)
++            if not os.path.isfile(origem):
++                raise DraftErro(f"mídia registrada no draft sumiu do disco: {origem}")
++            tipo = _tipo_asset(material)
++            nome = material.material_name
++            destino = os.path.join(draft_dir, "assets", tipo, nome)
++            os.makedirs(os.path.dirname(destino), exist_ok=True)
++            shutil.copy2(origem, destino)
++            material.replace_path = destino
++            copiados.append({
++                "origem": origem,
++                "asset": os.path.relpath(destino, draft_dir),
++                "bytes": os.path.getsize(destino),
++            })
++
++        escritos = write_profile_content(profile, draft_dir, script.dumps(profile))
++
++        with open(os.path.join(draft_dir, MARKER), "w", encoding="utf-8") as f:
++            json.dump({
++                "draft_id": draft_id,
++                "criado_em": datetime.now().isoformat(timespec="seconds"),
++                "ferramenta": "vectcut-safe",
++                "perfil": profile.template_dir,
++            }, f, ensure_ascii=False, indent=2)
++
++        return {
++            "ok": True,
++            "draft_dir": draft_dir,
++            "arquivos_de_conteudo": [os.path.relpath(str(p), draft_dir) for p in escritos],
++            "midias_copiadas": copiados,
++        }
++    except Exception:
++        # rollback: só removemos o que ESTA execução criou agora
++        if os.path.isdir(draft_dir):
++            shutil.rmtree(draft_dir, ignore_errors=True)
++        raise
++
++
++def validar_draft(draft_id: str, config: dict) -> dict:
++    validar_draft_id(draft_id)
++    draft_dir = os.path.join(config["staging"], draft_id)
++    problemas = []
++    if not os.path.isdir(draft_dir):
++        raise DraftErro(f"draft não existe em staging: {draft_dir}")
++    if not os.path.isfile(os.path.join(draft_dir, MARKER)):
++        problemas.append("sem marker do vectcut-safe (não foi criado por este fluxo)")
++
++    conteudos = []
++    for raiz, _dirs, arquivos in os.walk(draft_dir):
++        for nome in arquivos:
++            if nome.endswith(".json") and nome != MARKER:
++                caminho = os.path.join(raiz, nome)
++                if os.path.getsize(caminho) == 0:
++                    continue  # placeholder vazio que já vem no template do upstream
++                try:
++                    with open(caminho, "r", encoding="utf-8") as f:
++                        json.load(f)
++                    conteudos.append(os.path.relpath(caminho, draft_dir))
++                except Exception as e:
++                    problemas.append(f"JSON inválido: {nome} ({e})")
++
++    n_assets = 0
++    pasta_assets = os.path.join(draft_dir, "assets")
++    if os.path.isdir(pasta_assets):
++        for raiz, _dirs, arquivos in os.walk(pasta_assets):
++            for nome in arquivos:
++                n_assets += 1
++                if os.path.getsize(os.path.join(raiz, nome)) == 0:
++                    problemas.append(f"asset vazio: {nome}")
++
++    return {
++        "ok": not problemas,
++        "draft_dir": draft_dir,
++        "jsons_validos": conteudos,
++        "assets": n_assets,
++        "problemas": problemas,
++    }
++
++
++def _capcut_aberto() -> bool:
++    try:
++        saida = subprocess.run(
++            ["tasklist", "/FI", "IMAGENAME eq CapCut.exe", "/FO", "CSV", "/NH"],
++            capture_output=True, text=True, timeout=10,
++        ).stdout
++        return "CapCut.exe" in saida
++    except Exception:
++        # na dúvida, tratamos como aberto: publicar com o CapCut aberto é proibido
++        return True
++
++
++def publicar_no_capcut(draft_id: str, script, config: dict, confirmar: bool, backups_dir: str) -> dict:
++    """Operação especial da Fase 6 — todas as travas da SPEC, na ordem."""
++    validar_draft_id(draft_id)
++
++    capcut_root = os.environ.get("SAFE_CAPCUT_DRAFT_ROOT", "").strip()
++    if not capcut_root:
++        raise DraftErro(
++            "publicação bloqueada: SAFE_CAPCUT_DRAFT_ROOT não configurado. "
++            "Essa variável só entra na Fase 6, com o caminho aprovado pelo aprovador na conversa."
++        )
++    if not os.path.isdir(capcut_root):
++        raise DraftErro(f"pasta de projetos do CapCut não existe: {capcut_root}")
++    if confirmar is not True:
++        raise DraftErro("publicação exige confirm=true explícito (regra 9 da SPEC)")
++
++    relatorio_validacao = validar_draft(draft_id, config)
++    if not relatorio_validacao["ok"]:
++        raise DraftErro(f"draft inválido, não publica: {relatorio_validacao['problemas']}")
++    if script is None:
++        raise DraftErro(
++            "script fora do cache — publique na mesma sessão em que o draft foi salvo "
++            "(o re-dump dos caminhos finais depende do draft em memória)"
++        )
++    if _capcut_aberto():
++        raise DraftErro("CapCut está aberto — feche o CapCut e chame de novo (regra da Fase 6)")
++
++    origem = os.path.join(config["staging"], draft_id)
++    destino = os.path.join(capcut_root, draft_id)
++    if os.path.exists(destino):
++        raise DraftErro(f"já existe um projeto com esse nome no CapCut: {destino} — nada foi tocado")
++
++    # backup do draft de staging (recuperável mesmo se algo der errado depois)
++    os.makedirs(backups_dir, exist_ok=True)
++    backup_zip = shutil.make_archive(
++        os.path.join(backups_dir, f"{draft_id}-{datetime.now().strftime('%H%M%S')}"),
++        "zip", origem,
++    )
++
++    criado = False
++    try:
++        shutil.copytree(origem, destino)
++        criado = True
++
++        # re-dump com os caminhos FINAIS (o draft precisa apontar para onde vai morar)
++        from draft_profiles import get_draft_profile, write_profile_content
++        profile = get_draft_profile()
++        for material in _materiais(script):
++            if getattr(material, "replace_path", None):
++                material.replace_path = os.path.join(
++                    destino, "assets", _tipo_asset(material), material.material_name
++                )
++        escritos = write_profile_content(profile, destino, script.dumps(profile))
++
++        hashes = {os.path.relpath(str(p), destino): _sha256(str(p)) for p in escritos}
++        return {
++            "ok": True,
++            "publicado_em": destino,
++            "backup": backup_zip,
++            "hashes_conteudo": hashes,
++            "aviso": "abra o CapCut e confira o projeto; os projetos antigos não foram tocados",
++        }
++    except Exception:
++        # rollback simples: remove só o que nós criamos agora
++        if criado and os.path.isdir(destino):
++            shutil.rmtree(destino, ignore_errors=True)
++        raise
+diff --git a/safe/no_network.py b/safe/no_network.py
+new file mode 100644
+index 0000000..3944a1d
+--- /dev/null
++++ b/safe/no_network.py
+@@ -0,0 +1,98 @@
++"""Kill-switch de rede do VectCut seguro.
++
++Instalado ANTES de qualquer import dos módulos do upstream. Mesmo que algum
++módulo importe `requests` (add_subtitle_impl importa), conexão real falha
++fechada aqui, na camada de socket.
++
++Exceção deliberada e mínima: o asyncio do Windows (ProactorEventLoop) cria um
++self-pipe interno via socketpair — bind em 127.0.0.1 com porta 0 (efêmera) e
++connect de volta ao próprio loopback. Isso nunca sai da máquina e não abre
++serviço alcançável de fora. Então: LOOPBACK com porta EFÊMERA passa; qualquer
++host externo, e qualquer porta FIXA (9001 incluída), morre.
++"""
++import socket
++
++_LOOPBACK = {"127.0.0.1", "::1", "localhost", ""}
++
++
++class SafeNetworkError(OSError):
++    pass
++
++
++_MENSAGEM = (
++    "rede desabilitada: o VectCut seguro opera 100% local "
++    "(regra absoluta 4 da SPEC — nenhum dado sai da máquina)"
++)
++
++_instalado = False
++
++
++def _host_de(address) -> str:
++    if isinstance(address, tuple) and address:
++        return str(address[0]).lower()
++    return str(address).lower()
++
++
++def _porta_de(address):
++    if isinstance(address, tuple) and len(address) >= 2:
++        try:
++            return int(address[1])
++        except (TypeError, ValueError):
++            return None
++    return None
++
++
++def install() -> None:
++    global _instalado
++    if _instalado:
++        return
++
++    orig_connect = socket.socket.connect
++    orig_connect_ex = socket.socket.connect_ex
++    orig_bind = socket.socket.bind
++    orig_getaddrinfo = socket.getaddrinfo
++
++    def connect_seguro(self, address):
++        if _host_de(address) in _LOOPBACK:
++            return orig_connect(self, address)
++        raise SafeNetworkError(_MENSAGEM)
++
++    def connect_ex_seguro(self, address):
++        if _host_de(address) in _LOOPBACK:
++            return orig_connect_ex(self, address)
++        raise SafeNetworkError(_MENSAGEM)
++
++    def bind_seguro(self, address):
++        # só loopback + porta efêmera (0): é o self-pipe do asyncio.
++        # Porta fixa (9001 etc.) é serviço — proibido pela regra 3.
++        if _host_de(address) in _LOOPBACK and _porta_de(address) == 0:
++            return orig_bind(self, address)
++        raise SafeNetworkError(_MENSAGEM)
++
++    def getaddrinfo_seguro(host, *args, **kwargs):
++        if host is None or str(host).lower() in _LOOPBACK:
++            return orig_getaddrinfo(host, *args, **kwargs)
++        raise SafeNetworkError(_MENSAGEM)
++
++    socket.socket.connect = connect_seguro
++    socket.socket.connect_ex = connect_ex_seguro
++    socket.socket.bind = bind_seguro
++    socket.getaddrinfo = getaddrinfo_seguro
++    socket.create_connection = _create_connection_segura(orig_getaddrinfo)
++
++    _instalado = True
++
++
++def _create_connection_segura(orig_getaddrinfo):
++    def _impl(address, *args, **kwargs):
++        if _host_de(address) in _LOOPBACK:
++            # reconstrução mínima: loopback direto, sem passar pelo getaddrinfo bloqueado
++            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
++            s.connect((address[0] if address[0] else "127.0.0.1", address[1]))
++            return s
++        raise SafeNetworkError(_MENSAGEM)
++    return _impl
++
++
++def esta_instalado() -> bool:
++    return _instalado
+diff --git a/safe/paths.py b/safe/paths.py
+new file mode 100644
+index 0000000..7694653
+--- /dev/null
++++ b/safe/paths.py
+@@ -0,0 +1,125 @@
++"""Política de caminhos do VectCut seguro.
++
++Leitura só dentro das raízes permitidas; escrita normal só em staging.
++Falha FECHADA: sem as variáveis de ambiente obrigatórias, nada funciona —
++o oposto do settings/local.py do upstream, que silenciosamente cai em
++defaults com domínio remoto.
++"""
++import os
++import re
++import uuid
++from datetime import datetime
++
++ENV_ROOT = "VIDEO_FACTORY_ROOT"
++ENV_MEDIA = "MEDIA_ROOT"
++ENV_STAGING = "STAGING_ROOT"
++ENV_NETWORK = "NETWORK_DISABLED"
++ENV_UPLOAD = "UPLOAD_DISABLED"
++ENV_CAPCUT = "SAFE_CAPCUT_DRAFT_ROOT"  # só existe depois da aprovação da Fase 6
++
++EXTENSOES = {
++    "video": {".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm"},
++    "audio": {".wav", ".mp3", ".m4a", ".aac", ".flac"},
++    "image": {".png", ".jpg", ".jpeg", ".webp", ".bmp"},
++    "subtitle": {".srt"},
++    "json": {".json"},
++}
++
++TAMANHO_MAX_MB = int(os.environ.get("SAFE_MAX_FILE_MB", "2048"))
++
++_RE_ESQUEMA = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*://")
++_RE_DRAFT_ID = re.compile(r"^VF_\d{8}_[a-f0-9]{8}$")
++
++
++class CaminhoRecusado(ValueError):
++    pass
++
++
++class ConfigAusente(RuntimeError):
++    pass
++
++
++def _env_obrigatoria(nome: str) -> str:
++    valor = os.environ.get(nome, "").strip()
++    if not valor:
++        raise ConfigAusente(
++            f"variável {nome} ausente — o servidor seguro falha fechado sem configuração explícita"
++        )
++    return valor
++
++
++def carregar_config() -> dict:
++    """Valida o ambiente na inicialização. Levanta ConfigAusente se faltar algo."""
++    root = _env_obrigatoria(ENV_ROOT)
++    if _env_obrigatoria(ENV_NETWORK) != "1":
++        raise ConfigAusente(f"{ENV_NETWORK} precisa ser '1' — rede é proibida no caminho seguro")
++    if _env_obrigatoria(ENV_UPLOAD) != "1":
++        raise ConfigAusente(f"{ENV_UPLOAD} precisa ser '1' — upload é proibido no caminho seguro")
++    if not os.path.isdir(root):
++        raise ConfigAusente(f"{ENV_ROOT} não existe no disco: {root}")
++
++    media = os.environ.get(ENV_MEDIA, "").strip() or os.path.join(root, "media")
++    staging = os.environ.get(ENV_STAGING, "").strip() or os.path.join(root, "staging")
++
++    leitura = [
++        media,
++        os.path.join(root, "jobs"),
++        os.path.join(root, "presets"),
++        os.path.join(root, "assets", "generated"),
++    ]
++    return {
++        "root": os.path.realpath(root),
++        "leitura": [os.path.realpath(p) for p in leitura],
++        "staging": os.path.realpath(staging),
++    }
++
++
++def _dentro(caminho_real: str, raiz: str) -> bool:
++    raiz_norm = os.path.normcase(raiz.rstrip("\\/"))
++    alvo = os.path.normcase(caminho_real)
++    return alvo == raiz_norm or alvo.startswith(raiz_norm + os.sep)
++
++
++def validar_leitura(caminho, tipo: str, config: dict) -> str:
++    """Valida um caminho de mídia de ENTRADA. Devolve o caminho real ou levanta CaminhoRecusado."""
++    if not isinstance(caminho, str) or not caminho.strip() or "\x00" in caminho:
++        raise CaminhoRecusado("caminho vazio ou inválido")
++    bruto = caminho.strip()
++
++    if _RE_ESQUEMA.match(bruto) or bruto.lower().startswith(("http:", "https:", "ftp:", "file:")):
++        raise CaminhoRecusado(f"URL recusada ({bruto[:60]}) — só arquivo local é aceito (regra 5)")
++    if bruto.startswith("\\\\") or bruto.startswith("//"):
++        raise CaminhoRecusado("caminho UNC recusado")
++    if ".." in bruto.replace("/", "\\").split("\\"):
++        raise CaminhoRecusado("'..' no caminho recusado")
++    if not os.path.isabs(bruto):
++        raise CaminhoRecusado("caminho relativo recusado — use caminho absoluto dentro das raízes permitidas")
++
++    real = os.path.realpath(bruto)  # resolve symlink/junction; escapar da raiz = recusa abaixo
++    if not any(_dentro(real, raiz) for raiz in config["leitura"]):
++        raise CaminhoRecusado(
++            f"fora das raízes permitidas: {real} (permitidas: {', '.join(config['leitura'])})"
++        )
++    if not os.path.isfile(real):
++        raise CaminhoRecusado(f"arquivo não existe: {real}")
++
++    ext = os.path.splitext(real)[1].lower()
++    if tipo not in EXTENSOES or ext not in EXTENSOES[tipo]:
++        raise CaminhoRecusado(f"extensão {ext} não permitida para {tipo}")
++
++    tamanho_mb = os.path.getsize(real) / (1024 * 1024)
++    if tamanho_mb > TAMANHO_MAX_MB:
++        raise CaminhoRecusado(f"arquivo de {tamanho_mb:.0f} MB excede o limite de {TAMANHO_MAX_MB} MB")
++    return real
++
++
++def validar_draft_id(draft_id) -> str:
++    if not isinstance(draft_id, str) or not _RE_DRAFT_ID.match(draft_id):
++        raise CaminhoRecusado(
++            "draft_id inválido — formato exigido: VF_AAAAMMDD_<8 hex> (sem separadores de caminho)"
++        )
++    return draft_id
++
++
++def novo_draft_id() -> str:
++    return f"VF_{datetime.now().strftime('%Y%m%d')}_{uuid.uuid4().hex[:8]}"
+diff --git a/tests_safe/make_fixtures.py b/tests_safe/make_fixtures.py
+new file mode 100644
+index 0000000..3651b80
+--- /dev/null
++++ b/tests_safe/make_fixtures.py
+@@ -0,0 +1,45 @@
++"""Gera as mídias sintéticas do job de teste em media\\test\\ (Fase 4).
++
++Reexecutável: apaga e recria só os arquivos que ele mesmo gera.
++"""
++import os
++import subprocess
++import sys
++
++ROOT = os.environ.get("VIDEO_FACTORY_ROOT", r"D:\VIDEO-FACTORY")
++DEST = os.path.join(ROOT, "media", "test")
++
++
++def ff(*args):
++    r = subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *args],
++                       capture_output=True, text=True)
++    if r.returncode != 0:
++        print(r.stderr, file=sys.stderr)
++        raise SystemExit(1)
++
++
++def main():
++    os.makedirs(DEST, exist_ok=True)
++    ff("-f", "lavfi", "-i", "testsrc2=size=1080x1920:rate=30:duration=6",
++       "-pix_fmt", "yuv420p", "-c:v", "libx264", "-preset", "veryfast",
++       os.path.join(DEST, "video-teste.mp4"))
++    ff("-f", "lavfi", "-i", "sine=frequency=440:duration=4",
++       "-c:a", "pcm_s16le", os.path.join(DEST, "audio-teste.wav"))
++    ff("-f", "lavfi", "-i", "color=c=0x224466:size=1080x1920:duration=1:rate=1",
++       "-frames:v", "1", os.path.join(DEST, "imagem-teste.png"))
++    with open(os.path.join(DEST, "legenda-teste.srt"), "w", encoding="utf-8") as f:
++        f.write("1\n00:00:00,200 --> 00:00:02,000\nPrimeira legenda de teste\n\n"
++                "2\n00:00:02,200 --> 00:00:04,000\nSegunda legenda de teste\n")
++    with open(os.path.join(DEST, "palavras-teste.json"), "w", encoding="utf-8") as f:
++        f.write('[{"text": "Isto", "start": 0.2, "end": 0.5},'
++                '{"text": "é", "start": 0.5, "end": 0.65},'
++                '{"text": "um", "start": 0.65, "end": 0.8},'
++                '{"text": "teste", "start": 0.8, "end": 1.2},'
++                '{"text": "do", "start": 1.3, "end": 1.45},'
++                '{"text": "VectCut", "start": 1.45, "end": 1.9},'
++                '{"text": "seguro.", "start": 1.9, "end": 2.4}]')
++    print(f"fixtures ok em {DEST}")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/tests_safe/test_roundtrip.py b/tests_safe/test_roundtrip.py
+new file mode 100644
+index 0000000..df16ed7
+--- /dev/null
++++ b/tests_safe/test_roundtrip.py
+@@ -0,0 +1,218 @@
++"""Teste ponta-a-ponta do vectcut-safe VIA PROTOCOLO MCP (stdio), como o Claude usará.
++
++Sobe o servidor num subprocesso, conversa por stdio com o cliente oficial do
++pacote `mcp` e roda o job sintético completo da Fase 4 + os testes negativos
++de segurança. Qualquer falha = exit 1.
++"""
++import asyncio
++import json
++import os
++import shutil
++import sys
++
++from mcp import ClientSession, StdioServerParameters
++from mcp.client.stdio import stdio_client
++
++REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
++ROOT = os.environ.get("VIDEO_FACTORY_ROOT", r"D:\VIDEO-FACTORY")
++PYTHON = os.path.join(REPO, ".venv", "Scripts", "python.exe")
++MEDIA = os.path.join(ROOT, "media", "test")
++
++FERRAMENTAS_ESPERADAS = {
++    "create_draft", "add_video_local", "add_audio_local", "add_image_local",
++    "add_text", "add_subtitle_local", "add_dynamic_captions", "add_effect",
++    "add_keyframes", "inspect_media", "save_draft_to_staging", "validate_draft",
++    "publish_draft_to_capcut",
++}
++
++FALHAS = []
++
++
++def checar(nome, cond, detalhe=""):
++    if cond:
++        print(f"  ok  {nome}")
++    else:
++        FALHAS.append(nome)
++        print(f"FALHA {nome} {detalhe}")
++
++
++def parse(resultado):
++    texto = "".join(c.text for c in resultado.content if getattr(c, "text", None))
++    try:
++        return json.loads(texto)
++    except Exception:
++        return {"_bruto": texto}
++
++
++async def main():
++    env = dict(os.environ)
++    env.update({
++        "VIDEO_FACTORY_ROOT": ROOT,
++        "MEDIA_ROOT": os.path.join(ROOT, "media"),
++        "STAGING_ROOT": os.path.join(ROOT, "staging"),
++        "NETWORK_DISABLED": "1",
++        "UPLOAD_DISABLED": "1",
++    })
++    env.pop("SAFE_CAPCUT_DRAFT_ROOT", None)  # publish DEVE estar travado nesta fase
++
++    params = StdioServerParameters(
++        command=PYTHON, args=[os.path.join(REPO, "mcp_server_safe.py")], env=env,
++    )
++    async with stdio_client(params) as (read, write):
++        async with ClientSession(read, write) as sessao:
++            await sessao.initialize()
++
++            # 1. allowlist exata — nada de ferramenta cloud/HTTP
++            ferramentas = {t.name for t in (await sessao.list_tools()).tools}
++            checar("allowlist exata de 13 ferramentas", ferramentas == FERRAMENTAS_ESPERADAS,
++                   f"(veio: {sorted(ferramentas)})")
++
++            async def chamar(nome, **args):
++                return parse(await sessao.call_tool(nome, args))
++
++            # 2. job sintético completo
++            r = await chamar("create_draft")
++            checar("create_draft", r.get("ok") is True, str(r))
++            did = r.get("draft_id", "")
++            checar("draft_id no formato VF_", did.startswith("VF_"))
++
++            v = os.path.join(MEDIA, "video-teste.mp4")
++            r = await chamar("add_video_local", path=v, draft_id=did, start=0.5, end=4.5, volume=0.9)
++            checar("vídeo local com corte e volume", r.get("ok") is True, str(r))
++
++            r = await chamar("add_image_local", path=os.path.join(MEDIA, "imagem-teste.png"),
++                             draft_id=did, start=1.0, end=3.0, scale_x=0.5, scale_y=0.5)
++            checar("imagem local", r.get("ok") is True, str(r))
++
++            r = await chamar("add_audio_local", path=os.path.join(MEDIA, "audio-teste.wav"),
++                             draft_id=did, volume=0.6)
++            checar("trilha de áudio local", r.get("ok") is True, str(r))
++
++            r = await chamar("add_text", text="Texto simples de teste", start=0.2, end=2.0,
++                             draft_id=did, font_size=9.0)
++            checar("texto simples", r.get("ok") is True, str(r))
++
++            r = await chamar("add_text", text="Texto com sombra e borda", start=2.2, end=4.0,
++                             draft_id=did, border_width=12.0, border_color="#000000",
++                             font_color="#FFD700", shadow_enabled=True, track_name="text_b")
++            checar("texto com múltiplos estilos", r.get("ok") is True, str(r))
++
++            r = await chamar("add_effect", draft_id=did, effect_type="效果不存在测试",
++                             effect_category="scene", start=0, end=1)
++            checar("efeito inexistente vira erro CLARO (não silencioso)",
++                   r.get("ok") is False and "catálogo" in r.get("mensagem", ""), str(r))
++
++            r = await chamar("add_keyframes", draft_id=did, track_name="main",
++                             property_type="alpha",
++                             keyframes=[{"time": 0.0, "value": "1.0"}, {"time": 2.0, "value": "0.3"}])
++            checar("keyframes", r.get("ok") is True, str(r))
++
++            r = await chamar("add_subtitle_local", srt_path=os.path.join(MEDIA, "legenda-teste.srt"),
++                             draft_id=did)
++            checar("SRT local", r.get("ok") is True, str(r))
++
++            with open(os.path.join(MEDIA, "palavras-teste.json"), encoding="utf-8") as f:
++                palavras = json.load(f)
++            r = await chamar("add_dynamic_captions", draft_id=did, words=palavras)
++            checar("legenda dinâmica por páginas", r.get("ok") is True and r.get("paginas", 0) >= 2, str(r))
++
++            # Régua de tamanho calibrada no CapCut na Fase 6 (14/08/2026): o aprovador
++            # pediu tamanho VARIÁVEL para dar dinamismo às frases de destaque, e o
++            # tamanho 60 com 8 caracteres estourou a tela — daí o aviso de largura.
++            destaque = [
++                {"text": "sao", "start": 0.0, "end": 0.3, "emphasis": "normal"},
++                {"text": "cinco", "start": 0.3, "end": 0.7, "emphasis": "keyword"},
++                {"text": "pares.", "start": 0.7, "end": 1.1, "emphasis": "normal"},
++                {"text": "Compre", "start": 1.2, "end": 1.6, "emphasis": "normal"},
++                {"text": "hoje.", "start": 1.6, "end": 2.0, "emphasis": "normal"},
++            ]
++            r = await chamar("add_dynamic_captions", draft_id=did, words=destaque,
++                             track_name="captions_destaque", font_size=9, font_size_destaque=25)
++            checar("página com keyword sai no tamanho de destaque",
++                   r.get("ok") is True and r.get("paginas_em_destaque", 0) == 1, str(r))
++
++            r = await chamar("add_text", draft_id=did, text="texto muito longo que estoura",
++                             start=0, end=1, font_size=60, track_name="texto_estoura")
++            checar("texto largo demais devolve aviso de largura",
++                   r.get("ok") is True and "aviso" in r, str(r))
++
++            r = await chamar("add_text", draft_id=did, text="cabe", start=1, end=2,
++                             font_size=7, track_name="texto_cabe")
++            checar("texto pequeno NÃO gera aviso falso",
++                   r.get("ok") is True and "aviso" not in r, str(r))
++
++            r = await chamar("inspect_media", path=v)
++            checar("inspect_media", r.get("ok") is True and r.get("duracao_s", 0) > 5, str(r))
++
++            r = await chamar("save_draft_to_staging", draft_id=did)
++            checar("save em staging", r.get("ok") is True, str(r))
++            checar("mídias copiadas para o draft", len(r.get("midias_copiadas", [])) >= 3, str(r))
++            draft_dir = r.get("draft_dir", "")
++
++            # Regressão: o upstream carimbava .mp3/.mp4/.png fixos no nome do material
++            # (add_audio_track.py: "fixed mp3 extension"). No caminho local o arquivo é
++            # copiado byte a byte, então um .wav virava um .mp3 que mente o formato —
++            # o CapCut recebia um arquivo com extensão errada.
++            copiados = r.get("midias_copiadas", [])
++            def _asset_de(nome_origem):
++                for c in copiados:
++                    if os.path.basename(c.get("origem", "")) == nome_origem:
++                        return c.get("asset", "")
++                return ""
++            checar("asset de áudio preserva a extensão da origem (.wav)",
++                   _asset_de("audio-teste.wav").endswith(".wav"), str(copiados))
++            checar("asset de vídeo preserva a extensão da origem (.mp4)",
++                   _asset_de("video-teste.mp4").endswith(".mp4"), str(copiados))
++            checar("asset de imagem preserva a extensão da origem (.png)",
++                   _asset_de("imagem-teste.png").endswith(".png"), str(copiados))
++
++            r = await chamar("validate_draft", draft_id=did)
++            checar("validate_draft", r.get("ok") is True, str(r))
++
++            # 3. segurança — tudo tem que RECUSAR
++            r = await chamar("add_video_local", path="https://example.com/v.mp4", draft_id=did)
++            checar("URL http recusada", r.get("ok") is False and "URL" in r.get("mensagem", ""), str(r))
++
++            r = await chamar("add_video_local",
++                             path=os.path.join(ROOT, "media", "..", "CLAUDE.md"), draft_id=did)
++            checar("traversal recusado", r.get("ok") is False, str(r))
++
++            r = await chamar("add_video_local", path=r"\\servidor\share\v.mp4", draft_id=did)
++            checar("UNC recusado", r.get("ok") is False, str(r))
++
++            r = await chamar("add_video_local", path=r"C:\Windows\notepad.exe", draft_id=did)
++            checar("fora das raízes recusado", r.get("ok") is False, str(r))
++
++            r = await chamar("save_draft_to_staging", draft_id=did)
++            checar("salvar 2x o mesmo id recusado (nunca sobrescreve)",
++                   r.get("ok") is False and "sobrescrit" in r.get("mensagem", "").lower(), str(r))
++
++            r = await chamar("save_draft_to_staging", draft_id=r"VF_20260814_....\evil")
++            checar("draft_id malicioso recusado", r.get("ok") is False, str(r))
++
++            r = await chamar("publish_draft_to_capcut", draft_id=did, confirm=True)
++            checar("publish sem SAFE_CAPCUT_DRAFT_ROOT recusado",
++                   r.get("ok") is False and "SAFE_CAPCUT_DRAFT_ROOT" in r.get("mensagem", ""), str(r))
++
++            r = await chamar("publish_draft_to_capcut", draft_id=did, confirm=False)
++            checar("publish sem confirm recusado", r.get("ok") is False, str(r))
++
++            # 4. nenhuma resposta com URL externa (varremos tudo que voltou)
++            #    (as respostas acima já foram checadas uma a uma; aqui é o princípio)
++            r = await chamar("validate_draft", draft_id=did)
++            checar("resposta sem http/URL externa", "http" not in json.dumps(r).lower(), str(r)[:200])
++
++            # limpeza do draft de teste em staging
++            if draft_dir and os.path.isdir(draft_dir) and os.path.isfile(os.path.join(draft_dir, ".vf_marker.json")):
++                shutil.rmtree(draft_dir, ignore_errors=True)
++                print(f"  (staging de teste limpo: {draft_dir})")
++
++    print()
++    if FALHAS:
++        print(f"{len(FALHAS)} FALHA(S): {FALHAS}")
++        raise SystemExit(1)
++    print("roundtrip MCP completo: todos os testes passaram")
++
++
++if __name__ == "__main__":
++    asyncio.run(main())
+diff --git a/tests_safe/test_units.py b/tests_safe/test_units.py
+new file mode 100644
+index 0000000..6c6c2f5
+--- /dev/null
++++ b/tests_safe/test_units.py
+@@ -0,0 +1,117 @@
++"""Testes de unidade do caminho seguro: kill-switch de rede e política de caminhos.
++
++Roda direto com o Python da venv (sem framework): qualquer falha = exit 1.
++"""
++import os
++import sys
++
++sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
++
++ROOT = os.environ.setdefault("VIDEO_FACTORY_ROOT", r"D:\VIDEO-FACTORY")
++os.environ.setdefault("NETWORK_DISABLED", "1")
++os.environ.setdefault("UPLOAD_DISABLED", "1")
++
++FALHAS = []
++
++
++def caso(nome, fn):
++    try:
++        fn()
++        print(f"  ok  {nome}")
++    except Exception as e:
++        FALHAS.append(f"{nome}: {e}")
++        print(f"FALHA {nome}: {e}")
++
++
++def deve_recusar(fn, *args, **kwargs):
++    from safe.paths import CaminhoRecusado
++    try:
++        fn(*args, **kwargs)
++    except CaminhoRecusado:
++        return
++    raise AssertionError("deveria ter recusado e aceitou")
++
++
++def main():
++    from safe import no_network
++    from safe.paths import carregar_config, validar_leitura, validar_draft_id, novo_draft_id
++
++    config = carregar_config()
++
++    # --- rede ---
++    no_network.install()
++
++    def t_socket():
++        import socket
++        try:
++            socket.create_connection(("example.com", 80), timeout=2)
++        except no_network.SafeNetworkError:
++            return
++        raise AssertionError("socket conectou com kill-switch instalado")
++
++    def t_requests():
++        import requests
++        try:
++            requests.get("https://example.com", timeout=2)
++        except Exception:
++            return  # qualquer exceção serve: a conexão não aconteceu
++        raise AssertionError("requests.get funcionou com kill-switch instalado")
++
++    def t_listener():
++        import socket
++        s = socket.socket()
++        try:
++            s.bind(("127.0.0.1", 9001))
++        except no_network.SafeNetworkError:
++            return
++        finally:
++            s.close()
++        raise AssertionError("bind funcionou — listener deveria ser impossível")
++
++    caso("socket de saída bloqueado", t_socket)
++    caso("requests bloqueado", t_requests)
++    caso("listener (porta 9001) bloqueado", t_listener)
++
++    # --- caminhos ---
++    video_ok = os.path.join(ROOT, "media", "test", "video-teste.mp4")
++
++    caso("arquivo válido aceito", lambda: validar_leitura(video_ok, "video", config))
++    caso("URL http recusada", lambda: deve_recusar(validar_leitura, "https://x.com/v.mp4", "video", config))
++    caso("URL ftp recusada", lambda: deve_recusar(validar_leitura, "ftp://x/v.mp4", "video", config))
++    caso("UNC recusado", lambda: deve_recusar(validar_leitura, r"\\servidor\share\v.mp4", "video", config))
++    caso("traversal .. recusado", lambda: deve_recusar(
++        validar_leitura, os.path.join(ROOT, "media", "..", "CLAUDE.md"), "video", config))
++    caso("fora das raízes recusado", lambda: deve_recusar(
++        validar_leitura, r"C:\Windows\notepad.exe", "video", config))
++    caso("dentro da raiz mas extensão errada", lambda: deve_recusar(
++        validar_leitura, os.path.join(ROOT, "media", "test", "legenda-teste.srt"), "video", config))
++    caso("caminho relativo recusado", lambda: deve_recusar(validar_leitura, "media/test/v.mp4", "video", config))
++
++    # --- draft id ---
++    caso("draft_id gerado é válido", lambda: validar_draft_id(novo_draft_id()))
++    caso("draft_id com separador recusado", lambda: deve_recusar(validar_draft_id, r"VF_20260814_..\\evil"))
++    caso("draft_id de formato livre recusado", lambda: deve_recusar(validar_draft_id, "dfd_cat_123"))
++
++    # --- config falha fechada ---
++    def t_fail_closed():
++        from safe.paths import ConfigAusente
++        salvo = os.environ.pop("NETWORK_DISABLED")
++        try:
++            carregar_config()
++        except ConfigAusente:
++            return
++        finally:
++            os.environ["NETWORK_DISABLED"] = salvo
++        raise AssertionError("config sem NETWORK_DISABLED deveria falhar")
++
++    caso("config falha fechada sem NETWORK_DISABLED", t_fail_closed)
++
++    print()
++    if FALHAS:
++        print(f"{len(FALHAS)} FALHA(S)")
++        raise SystemExit(1)
++    print("todos os testes de unidade passaram")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/util.py b/util.py
+index 99aeb98..8a57f0d 100644
+--- a/util.py
++++ b/util.py
+@@ -49,6 +49,24 @@ def zip_draft(draft_id):
+     shutil.make_archive(os.path.join(zip_dir, draft_id), 'zip', os.path.join(current_dir, draft_id))
+     return zip_path
+ 
++def material_ext(source, default):
++    """
++    Extensao do material dentro do draft, derivada da origem.
++
++    [safe-local] O upstream carimba extensao fixa (.mp3/.mp4/.png) porque no
++    fluxo dele a midia sempre chega baixada de uma URL e reescrita. No caminho
++    local seguro o arquivo e copiado byte a byte, entao a extensao precisa
++    acompanhar a origem -- senao um .wav entra no draft chamado .mp3 e o CapCut
++    recebe um arquivo que mente o proprio formato.
++
++    Quando a origem nao tiver extensao utilizavel (URL sem nome de arquivo,
++    query string), devolve o default do upstream.
++    """
++    ext = os.path.splitext(str(source))[1]
++    if not ext or len(ext) > 6 or any(c in ext for c in '/\\?&#'):
++        return default
++    return ext.lower()
++
+ def url_to_hash(url, length=16):
+     """
+     Convert URL to a fixed-length hash string (without extension)

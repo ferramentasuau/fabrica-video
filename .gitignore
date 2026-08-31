@@ -1,0 +1,96 @@
+# ============================================================
+# VIDEO-FACTORY — o Git guarda código, configuração e documento.
+# Mídia, render, dependência e segredo ficam fora.
+# ============================================================
+
+# --- Dependências e toolchains ---
+node_modules/
+engine/whisper.cpp/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# O clone do VectCutAPI é um repositório Git próprio;
+# o repo externo não versiona o interno.
+tools/VectCutAPI/
+
+# --- Renders e saídas ---
+out/
+output/
+staging/
+backups/
+assets/generated/
+
+# --- Mídia (nunca no Git) ---
+*.mp4
+*.MP4
+*.mov
+*.MOV
+*.m4v
+*.avi
+*.mkv
+*.webm
+*.wav
+*.WAV
+*.mp3
+*.MP3
+*.m4a
+*.aac
+*.flac
+*.png
+*.PNG
+*.jpg
+*.JPG
+*.jpeg
+*.gif
+*.avif
+*.webp
+*.psd
+*.aep
+*.bin
+*.lnk
+
+# Exceção: fontes woff2 são pequenas e necessárias para reprodutibilidade
+!*.woff2
+
+# --- Acervos e pastas de trabalho manual (não são código) ---
+# CAPCUT FERRAMENTAS E PROJETOS/ — migrada em 17/08/2026 para assets/_biblioteca-*
+# (a mídia continua barrada pelas regras de extensão acima)
+biblioteca/
+media/
+_ARQUIVO/
+_referencia/
+_editar-funcionaria/
+_ouvir-*/
+
+# --- Temporários ---
+# Estado de runtime do Claude Code: o lock do /loop nasce e morre com a sessão.
+.claude/scheduled_tasks.lock
+assets/_*-tmp/
+*.tmp
+*.raw
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# --- Segredos (nunca, em hipótese alguma) ---
+# .mcp.json real fica fora (expõe layout da máquina); o .mcp.json.example versiona.
+.mcp.json
+.env
+*.env
+*.pem
+*.key
+*credential*
+*CREDENTIAL*
+config.json.local
+
+# sons próprios citados nominalmente pela receita (orquestra) — pequenos,
+# viajam no repo; trilhas de TERCEIROS continuam fora, de propósito.
+!assets/_biblioteca-som/efeitos-originais/*
+
+# transição citada pela receita (Light Leak, 168 KB)
+!assets/_biblioteca-visual/transicoes/Light Leak.mp4
+
+# mocks de prova social da marca demo (cor sólida, sem pessoa real)
+!assets/demo/prova/*.jpg

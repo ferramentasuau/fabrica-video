@@ -1,0 +1,38 @@
+{
+  "_comentario": "Marca DEMO do VIDEO-FACTORY — marca neutra de demonstração que acompanha o pacote. Serve de exemplo preenchido do _MODELO.json e alimenta os defaultProps do Studio e os JSONs de engine/exemplos/. Copie como <id>.json para criar a sua marca (a validação é o brandSchema de engine/src/lib/brand.ts).",
+  "_comentario_assets": "Caminhos de logo/fonte são RELATIVOS à pasta D:\\VIDEO-FACTORY\\assets\\ — ex.: 'demo/fonts/inter-400.woff2'. As fontes desta marca já vêm no pacote, em assets\\demo\\fonts\\.",
+
+  "id": "demo",
+  "name": "Marca Demo",
+
+  "_comentario_handle": "handle = @ do Instagram OU site — vira a linha pequena no fim do vídeo. null = não mostra.",
+  "handle": "@marca.demo",
+
+  "colors": {
+    "_comentario": "bg=fundo | bg2=segunda cor do gradiente (opcional) | primary=destaque (números/CTA) | accent=apoio | text=texto claro | textMuted=texto secundário | onPrimary=texto SOBRE a cor primária (opcional)",
+    "bg": "#171A21",
+    "bg2": "#232A36",
+    "primary": "#FF6B57",
+    "accent": "#6FA8FF",
+    "text": "#F4F6FB",
+    "textMuted": "#9AA3B2",
+    "onPrimary": "#171A21"
+  },
+
+  "fonts": {
+    "_comentario": "title=títulos (serifa display) | body=corpo/labels | numbers=números grandes e CTA (opcional; sem ele usa title). file=null usa fonte do sistema (fallback).",
+    "title": { "family": "Playfair Display", "file": "demo/fonts/playfair-display-700.woff2", "weight": "700", "fallback": "Georgia, serif" },
+    "body": { "family": "Inter", "file": "demo/fonts/inter-400.woff2", "weight": "400", "fallback": "system-ui, sans-serif" },
+    "numbers": { "family": "Inter", "file": "demo/fonts/inter-800.woff2", "weight": "800", "fallback": "system-ui, sans-serif" }
+  },
+
+  "_comentario_manuscrito": "O manuscrito (palavras de destaque da LegendaDinamica) não mora na marca: vem do default do estiloDestaque em engine/src/lib/schemas.ts, que aponta para demo/fonts/caveat-700.woff2 — também incluída no pacote.",
+
+  "_comentario_logo": "logo = caminho da imagem em assets\\ OU null (null renderiza o nome da marca como logo-texto — nunca trava).",
+  "logo": null,
+
+  "cta": { "text": "Fale com a gente" },
+
+  "_comentario_safeMargins": "Margens de segurança (px) pra UI do Reels/TikTok não cobrir o conteúdo. Os defaults abaixo são seguros — só mexa se souber por quê.",
+  "safeMargins": { "top": 220, "bottom": 320, "sides": 64 }
+}

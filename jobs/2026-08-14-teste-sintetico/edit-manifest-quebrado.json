@@ -1,0 +1,20 @@
+﻿{
+    "composition":  "CaptionOverlay",
+    "fps":  60,
+    "width":  1080,
+    "height":  1920,
+    "durationInFrames":  300,
+    "brandPreset":  "demo",
+    "props":  {
+
+              },
+    "safeZones":  true,
+    "output":  "C:\\Windows\\evil.mp4",
+    "_meta":  {
+                  "objetivo":  "alcance",
+                  "formato_criativo":  "telepatia",
+                  "engine_legenda":  "remotion",
+                  "modo_saida":  "hibrida",
+                  "aprovador":  "aprovador"
+              }
+}

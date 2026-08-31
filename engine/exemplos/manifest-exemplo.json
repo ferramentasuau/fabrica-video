@@ -1,0 +1,54 @@
+{
+  "composition": "CTAEndcard",
+  "fps": 30,
+  "width": 1080,
+  "height": 1920,
+  "durationInFrames": 120,
+  "brandPreset": "demo",
+  "props": {
+    "brand": {
+      "id": "demo",
+      "name": "Marca Demo",
+      "handle": "@marca.demo",
+      "colors": {
+        "bg": "#171A21",
+        "bg2": "#232A36",
+        "primary": "#FF6B57",
+        "accent": "#6FA8FF",
+        "text": "#F4F6FB",
+        "textMuted": "#9AA3B2",
+        "onPrimary": "#171A21"
+      },
+      "fonts": {
+        "title": {
+          "family": "Playfair Display",
+          "file": "demo/fonts/playfair-display-700.woff2",
+          "weight": "700",
+          "style": "normal",
+          "fallback": "Georgia, serif"
+        },
+        "body": {
+          "family": "Inter",
+          "file": "demo/fonts/inter-400.woff2",
+          "weight": "400",
+          "style": "normal",
+          "fallback": "system-ui, sans-serif"
+        },
+        "numbers": {
+          "family": "Inter",
+          "file": "demo/fonts/inter-800.woff2",
+          "weight": "800",
+          "style": "normal",
+          "fallback": "system-ui, sans-serif"
+        }
+      },
+      "logo": null,
+      "cta": { "text": "Fale com a gente" },
+      "safeMargins": { "top": 220, "bottom": 320, "sides": 64 }
+    },
+    "subTexto": "R$100 de desconto na oferta demo, por tempo limitado",
+    "durationSeconds": 4
+  },
+  "safeZones": true,
+  "output": "jobs/exemplo/renders/cta-endcard-exemplo.mp4"
+}

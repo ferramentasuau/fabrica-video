@@ -1,0 +1,468 @@
+{
+  "id": "talking-head-v1",
+  "nome": "Talking head — legenda 3D, texto atrás da cabeça, prova social e CTA manuscrita",
+  "aprovado": "aprovada em 19/08/2026 — peça 1 de um lote real, finalizada e fechada no CapCut. Primeiro projeto completo da fábrica.",
+  "serve_para": "vídeo vertical 1080x1920 de uma pessoa falando à câmera, com prova social por nome citado e chamada final. Testado em 78,84s.",
+  "marca": "demo",
+  "composicao": "LegendaDinamica",
+  "_como_usar": [
+    "1. Prepare o job: jobs/AAAA-MM-DD-nome/ com raw/, transcript/, generated/, renders/, qc/.",
+    "2. Transcreva e corrija (o Whisper é instrumento de TEMPO, não de TEXTO):",
+    "   node engine/scripts/transcribe.mjs <wav> <captions.json> medium",
+    "   node engine/scripts/exportar-palavras.mjs <captions.json> <words.json>",
+    "3. Decida as 5 âncoras editoriais (ver `derivacao.ancoras_do_brief`); quando a regra automática não bastar, passe-as num arquivo com --ancoras <arquivo.json>.",
+    "4. Rode o gerador — ele monta manifest E props e imprime o mapa de decisões:",
+    "   node engine/scripts/montar-por-receita.mjs <pasta-do-job> presets/receitas/talking-head-v1.json",
+    "5. LEIA o mapa de decisões antes de renderizar. É onde a regra automática se explica.",
+    "6. Gere o recorte da pessoa para cada janela de texto-atrás (ver `derivacao.texto_atras`).",
+    "7. Still de portão → render cheio → qc_video.py → entrega no CapCut.",
+    "",
+    "Para outra MARCA: troque `marca` e confira `estilo.brand_dependente`. Se a marca usar",
+    "fonte nova em display com ajuste `fit`, MEÇA antes (senão o encaixe cai no fallback de",
+    "0,6em/glifo e as bordas desalinham):",
+    "   node engine/scripts/medir-largura-fonte.mjs <fonte.woff2> engine/src/lib/larguras-<slug>.json",
+    "   e registre a família em engine/src/lib/larguras.ts."
+  ],
+  "_leia_antes_de_mudar_qualquer_numero": {
+    "regra_de_ouro": "Todo número aqui foi medido ou aprovado no olho dele. Nenhum é chute. Antes de trocar, leia o `_por_que` correspondente — vários existem para consertar um erro específico que já custou rodada.",
+    "o_bloco_mortos_e_o_mais_importante": "Os defaults do schema contradizem decisões aprovadas: veu=true, destaquePalavra=true, paginaSeca=false, escala=1.35, offsetMs=+100, antecipaPaginaMs=200. Job que esquecer de passar as flags sai CONTRA o que ele decidiu. Por isso o bloco `mortos` é explícito em vez de omitido."
+  },
+  "estilo": {
+    "_o_que_e": "Os 16 parâmetros que copiam IGUAIS para qualquer vídeo desta marca. Não dependem do conteúdo.",
+    "legenda_corrida": {
+      "wordsPerPage": 3,
+      "fontSizePx": 46,
+      "bottomOffsetPx": 360,
+      "estiloLetra": "solido",
+      "intensidade": "contido",
+      "strokePx": 3,
+      "caixaAlta": false,
+      "offsetMs": -110,
+      "antecipaPaginaMs": 0,
+      "destaquePalavra": false,
+      "paginaSeca": true,
+      "porFrase": false,
+      "veu": false,
+      "_por_que": {
+        "wordsPerPage": "3 — a referência medida ficou entre 1,9 e 3,1 palavras por página. 5 está fora da faixa dela.",
+        "fontSizePx": "46 dá altura-x de ~25px. escolha aprovada no v2.",
+        "bottomOffsetPx": "360 + safeMargins.bottom (320) = 680px do rodapé, passando da linha y=1248 que é onde começa a UI do Instagram (35% da base).",
+        "estiloLetra": "solido — a onda 2 derrubou o vazado na legenda corrida.",
+        "offsetMs": "-110 NEGATIVO de propósito: a referência entra ~110ms DEPOIS da voz, não antes. Contradiz a régua antiga de '300ms antes', que era estimativa não medida.",
+        "antecipaPaginaMs": "0 — página não se antecipa; combina com o corte seco.",
+        "destaquePalavra": "false — karaokê DESLIGADO. 6/6 vídeos da referência não têm. A ênfase mora no display, não na legenda corrida.",
+        "paginaSeca": "true — troca em corte seco, sem fade. 679 páginas medidas na referência.",
+        "veu": "false — USER_REJECTED 17/08: 'esse véu eu não gostei, prefiro sem'. A legibilidade vem da sombra reforçada no texto."
+      }
+    },
+    "destaque_dourado": {
+      "estiloDestaque": {
+        "manuscrito": false,
+        "family": "Caveat",
+        "file": "demo/fonts/caveat-700.woff2",
+        "weight": "700",
+        "escala": 1.0,
+        "escalaXL": 1.7,
+        "cor": "primary",
+        "opacidade": 1
+      },
+      "_por_que": {
+        "manuscrito": "false — USER_REJECTED 17/08 do Caveat na legenda corrida. Usa a fonte da própria legenda.",
+        "escala": "1.0 — 'tira tudo' de tamanho. O destaque é SÓ A COR. Os textos grandes da peça são o texto-atrás, o pivô e a CTA; mais nada cresce.",
+        "cor": "primary — o dourado vira código escasso de AUTORIDADE/PROVA. Se tudo é dourado, nada é.",
+        "opacidade": "1 — sem manuscrito, translucidez vira sujeira.",
+        "family_file_weight": "INERTES com manuscrito:false, mas o template CARREGA a fonte mesmo assim. Deixados aqui por fidelidade ao aprovado; podem ser limpos quando o template deixar de carregar."
+      }
+    },
+    "texto_atras": {
+      "yPct": 0.09,
+      "fontSizePx": 215,
+      "estilo": "3d",
+      "textoAtrasFonte": {
+        "family": "Inter",
+        "file": "demo/fonts/inter-800.woff2",
+        "weight": "800"
+      },
+      "_por_que": {
+        "yPct": "0.09 — APROVADO 18/08 (still nt-d). Topo do bloco ÷ ALTURA. Nessa altura a cabeça/braço cobrem ~10% da tinta: é a régua da oclusão. Abaixo disso o gigante vira texto flutuando; muito acima, a frase não lê.",
+        "fontSizePx": "215 MEDIDO, não escolhido: pela tabela do Inter 800 a linha que aperta é a PRIMEIRA PALAVRA do gancho (4,850em na peça de origem) — a segunda palavra é sempre mais estreita. Sobram 19px por lado.",
+        "estilo": "3d — blocos SÓLIDOS opacos com extrusão. Vazado e sólido translúcido = USER_REJECTED 17/08, reprovados 2x.",
+        "textoAtrasFonte": "sans PESADA. Serifa fina em bloco/contorno foi o 'feio' reprovado — quanto mais grosso o glifo, mais tratamento ele aguenta. Também é a fonte-fallback dos displays 3D."
+      }
+    },
+    "pivo": {
+      "cor": "text",
+      "fontSizePx": 96,
+      "estilo": "3d",
+      "ajuste": "fit",
+      "_por_que": {
+        "ajuste": "fit — cada linha PREENCHE a largura útil: linha curta sai maior, bordas alinhadas dos dois lados. A largura vem de tabela MEDIDA da fonte, não de média por caractere (no Inter 800 o M mede 0,94em e o I 0,29em).",
+        "cor": "text (branco) como base; a cor por FRASE sobrepõe — é assim que a primeira sai dourada e as negações brancas."
+      }
+    },
+    "cta": {
+      "_ver": "presets/displays/cta-manuscrito-encaixado-v1.json — o envelope completo, com o encaixe de puzzle e os 11 rounds de ajuste documentados.",
+      "fontSizePx": 82,
+      "estilo": "3d",
+      "ajuste": "fit",
+      "fonte": {
+        "family": "Caveat Brush",
+        "file": "demo/fonts/caveat-brush-400.woff2",
+        "weight": "400"
+      },
+      "caixa": "natural",
+      "espacoPalavraEm": -0.12,
+      "espacoTintaEm": -0.2,
+      "profundidade": 0.05,
+      "encaixe_do_bloco_0": {
+        "bloco": 1,
+        "de": "Saib",
+        "ate": "Saiba ma",
+        "folgaEm": 0.015,
+        "puxaEsquerdaEm": 0.17
+      }
+    },
+    "insert_prova_social": {
+      "alturaTelaPx": 340,
+      "yPct": 0.44,
+      "respiroAbaixoDoAnel": 26,
+      "mascaraOffset": 3,
+      "corDoPainel": "#0B0E17",
+      "_por_que": {
+        "alturaTelaPx": "340 cabe entre a linha da BOCA de quem fala (pior quadro y=829) e a legenda (y=1197). Cobrir a boca de quem fala foi a única bloqueadora do loop — conferir só os olhos não basta.",
+        "yPct": "0.44 = topo em y=845. Abaixo da boca, não do queixo.",
+        "larguraPx": "NÃO é fixa — é calculada para todos os cartões darem a MESMA altura na tela: larguraPx = round(alturaTelaPx * origW / h). Altura constante importa mais que largura: os cartões entram em sequência no mesmo lugar, e é o pulo vertical que o olho denuncia.",
+        "respiroAbaixoDoAnel": "26px na origem. Sem isso o círculo do avatar encosta na moldura e 'aperta' — foi 1px contra 20px do lado, e ele viu.",
+        "mascaraOffset": "a máscara cobre a largura inteira a partir de (anel + 3). Resolve dois problemas de uma vez: mata a bio, que entraria cortada no meio, e o que fica no lugar é exatamente o respiro.",
+        "corDoPainel": "#0B0E17 medido nos próprios prints do Instagram escuro. Lê como parte do print, não como remendo."
+      },
+      "movimento": {
+        "opacidadeQuadros": 2,
+        "deslocamentoQuadros": 7,
+        "deslocamentoPx": 8,
+        "saida": "corte seco",
+        "_por_que": "Opacidade e deslocamento em rampas SEPARADAS. Juntos, o cartão passa translúcido com o vídeo aparecendo através dele e lê como dissolve barato. 7 quadros = 233ms, dentro dos 150-250ms da referência de motion. Saída seca porque fade que não chega a zero lê como falha — e é a língua do paginaSeca."
+      }
+    },
+    "brand_dependente": [
+      "brand (o objeto inteiro de brands/<id>.json entra nos props — o job é auto-contido)",
+      "as fontes em textoAtrasFonte e cta.fonte",
+      "cor sempre por TOKEN (primary/text/accent), nunca hex — trocar a marca troca o dourado sem tocar no manifest"
+    ]
+  },
+  "mortos": {
+    "_o_que_e": "Props que ficam explicitamente vazios. Sem este bloco, os defaults do schema ressuscitam decisões já rejeitadas.",
+    "transicoes": {
+      "valor": [],
+      "por_que": "talking head contínuo; não há corte de cena no vídeo-fonte. O corte é feito depois, no CapCut."
+    },
+    "transicaoMs": {
+      "valor": 360,
+      "por_que": "inerte com transicoes vazio"
+    },
+    "transicaoBlurPx": {
+      "valor": 14,
+      "por_que": "inerte"
+    },
+    "transicaoZoom": {
+      "valor": 0.05,
+      "por_que": "inerte"
+    },
+    "cutoutSrc": {
+      "valor": null,
+      "por_que": "LEGADO. O alfa do VP9 morre fora do libvpx — o recorte saía invisível (diff de pixels = 0, medido 17/08). Substituído por cutoutSeq com PNG."
+    },
+    "ativaNaFrente": {
+      "valor": true,
+      "por_que": "INERTE: o template só usa esse caminho quando textoAtras está vazio."
+    },
+    "palavrasAccent": {
+      "valor": [],
+      "por_que": "a marca não declara fonte accent itálica. Prop de outra marca."
+    },
+    "cartaoFinal": {
+      "valor": null,
+      "por_que": "a CTA é display, não cartão de tela cheia."
+    },
+    "zoomLento": {
+      "valor": null,
+      "por_que": "USER_REJECTED 12/08 — zoom lento no avatar. Registro que estava só em comentário de código."
+    },
+    "punches": {
+      "valor": [],
+      "por_que": "USER_REJECTED 18/08 (adendo 25): 'remover os efeitos de zoom e de clique'. Lista vazia mata o punch ANIMADO e o clarão branco, que vive dentro do evento de punch. ⚠️ Não confundir com o punch de 1,15x que ele aplica À MÃO no CapCut: esse existe, em 5 corridas — ver orquestra.zoom. O que morreu é o movimento automático, não a aproximação."
+    },
+    "punchesResetSegundo": {
+      "valor": null,
+      "por_que": "sem punches, sem reset"
+    },
+    "trilha": {
+      "valor": null,
+      "por_que": "a trilha NÃO entra no render — entra no CapCut, onde ele controla o volume. Ver `som`."
+    },
+    "palavrasDestaqueXL": {
+      "valor": [],
+      "por_que": "adendo 3: o XL-na-legenda morreu e virou o texto-atrás."
+    },
+    "sfx": {
+      "valor": [],
+      "por_que": "adendo 28: TODO efeito saiu do render e virou trilha no CapCut. Queimado, ele não conseguia mexer em tempo nem volume. Ver `som`."
+    }
+  },
+  "derivacao": {
+    "_o_que_e": "As regras que ligam o CONTEÚDO do vídeo novo aos tempos. Tudo ancorado em words.json (tempos em segundos).",
+    "ancoras_do_brief": {
+      "_o_que_e": "As 5 decisões editoriais que entram pelo arquivo de âncoras (--ancoras <arquivo.json>). São o que a máquina não deve adivinhar sozinha — mas no modo automático ela tenta, e avisa alto quando não acha.",
+      "gancho": "a frase de abertura que vira texto gigante atrás da cabeça. Regra automática: a primeira frase do roteiro, até a primeira pontuação forte.",
+      "gancho_2": "opcional — segunda frase-gancho no mesmo formato. Regra automática: a frase que fecha o primeiro bloco argumentativo (antes da primeira troca de assunto).",
+      "tese": "a frase de 2 ou 3 partes que vira o pivô. Regra automática: sequência de frases curtas com paralelismo ('É X. Não é Y. Não é Z.').",
+      "provas": "os nomes citados que ganham cartão. Regra automática: nomes próprios com 2 palavras iniciadas em maiúscula, fora do início de frase.",
+      "cta": "as duas linhas da chamada final. Regra automática: as últimas 2 páginas de legenda."
+    },
+    "texto_atras": {
+      "janela": "do start da 1ª palavra da frase-gancho ao end da última. A janela 0 pode começar em 0 se o texto já está na tela quando o vídeo abre.",
+      "cutout": "SEMPRE mais largo que o texto, nas duas pontas: começa ~0,1s antes e termina ~0,12s depois. Se o PNG-seq acabar antes, a pessoa some e o texto salta para a frente.",
+      "gerar_o_recorte": "node engine/scripts/cutout-pessoa.mjs <video> --de <ini> --ate <fim> --fps 25 --engine rvm --pngseq assets/<marca>/video/<dir>   ⚠️ posicionais ANTES das flags; alinhe a janela a múltiplo de 1/fps do vídeo-fonte para não pegar meio quadro de fase. Custo ~2,4s e ~2,4MB por quadro.",
+      "corpo_e_medido": "o fontSizePx vale para as duas janelas se a primeira palavra for a mesma — é ela que aperta a largura. Medir com larguraEmDaLinha antes de mudar."
+    },
+    "pivo": {
+      "janela": "abre ~0,12s ANTES da primeira palavra da tese; fecha na cauda da última palavra, antes da próxima começar.",
+      "blocos": "um por frase da tese; emSegundo = start da palavra-âncora de cada frase.",
+      "cor_por_frase": "a primeira frase (a afirmação) sai em `primary`; as negações em `text`.",
+      "segundo_pivo": "quando a fala enumera prova ('tem até [nome] da emissora A e da emissora B'), o pivô monta a FRASE e sai antes dos nomes — quem entra nos nomes é o cartão. Se o pivô voltar a dizer os nomes, os cartões têm de sair junto, senão os dois trilhos brigam."
+    },
+    "douradas": {
+      "regra": "sequências de AUTORIDADE/PROVA: números com sua unidade ('N anos dedicados', 'X mil alunos') e nomes próprios de prova social.",
+      "como_o_montador_acha": "achaSequencia() varre words.json por n-grama normalizado (sem acento, sem pontuação, minúsculo) e devolve o start da PRIMEIRA ocorrência.",
+      "armadilha_conhecida": "⚠️ palavrasDestaque é uma lista de PALAVRAS, não de intervalos — o template pinta TODA ocorrência da palavra no vídeo inteiro. Na peça 1 funcionou por sorte: cada um dos 12 tokens ocorre 1x no roteiro. Num vídeo novo, 'mil', 'anos', 'mais' vazam. O gerador PRECISA contar ocorrências e avisar.",
+      "conectivos_saem": "'de' entra na lista ao casar um nome composto ('Nome de Sobrenome') e pintaria todo 'de' do vídeo. Remover conectivos sempre."
+    },
+    "aparte_pb": {
+      "regra": "dessaturar marca TROCA DE INSTÂNCIA DE VOZ — o cético, o espectador, a ironia, a pergunta retórica. 8/8 no corpus, zero decorativas.",
+      "janela": "do start da primeira palavra ao start da palavra seguinte à frase. Entrada e saída SECAS, sem rampa: é sintaxe, não ambientação.",
+      "exemplo_da_peca": "o aparte de apresentação (cortado antes do nome) — 50,52 a 51,36"
+    },
+    "inserts": {
+      "janela": "entra no start da palavra do nome; sai quando o próximo cartão entra, ou ~1,4s depois. Um por vez, nunca empilhados — o par cobria da testa ao colo de quem fala.",
+      "medir_o_print": [
+        "y     = topo do recorte, ~15px acima da linha do arroba",
+        "anel  = ÚLTIMA linha do círculo do avatar, medida pela LARGURA da faixa saturada (>=8px)",
+        "⚠️ Medir o anel só por saturação pega o emoji colorido da bio na MESMA COLUNA do avatar e infla o valor em ~30px. Foi o que fez três dos quatro cartões saírem errados. O círculo tem ~150px de largura por linha; o emoji tem 7."
+      ],
+      "derivados": "h = anel + 26 - y  ·  mascaraY = anel + 3  ·  larguraPx = round(340 * origW / h)",
+      "teto_do_asset": "print de 591px de largura NÃO entrega texto grande: para o arroba chegar a 48px de caixa alta o cartão precisaria de ~1290px, mais largo que o quadro. Se o dado precisa ser lido, recapture num aparelho de tela maior — não é ajuste de código.",
+      "sem_tarja": "não redigite embaixo do cartão o que o print já diz, nem o que o áudio já afirma. Repetir recria a duplicação de texto que o gate de página foi tirar."
+    },
+    "gate_dos_tres_trilhos": {
+      "regra": "legenda corrida, texto-atrás, display e cartão NUNCA dividem a tela. O gate é por PÁGINA, não por quadro: a página some se >=50% da vida dela cair dentro da janela.",
+      "por_que_por_pagina": "recortar por quadro deixa a ponta da página piscando nas duas bordas da janela — o texto sai duplicado por 3 a 6 quadros. Foi reclamado duas vezes.",
+      "limiar": "0.5 — faixa segura medida entre 23% e 58%. Acima de 58% a página do CTA escapa e duplica a chamada nos quadros finais.",
+      "os_gates_per_frame_continuam": "o gate por página SOMA ao antigo, não substitui: o per-frame elimina o resíduo das páginas que só encostam na abertura."
+    },
+    "_estrutura_do_lote": {
+      "descoberta": "As pecas de um lote real sao montadas em 4 trechos, e os trechos 3 e 4 sao IDENTICOS palavra por palavra em todas elas (md5 conferido em 19/08). So T1 (a dor) e T2 (a virada/tese) mudam.",
+      "o_que_isso_significa": "Metade de cada peca ja esta resolvida pela peca 1. O aparte de apresentacao, os 4 cartoes de prova (na ordem de citacao), o pivo D3 e a CTA replicam com DESLOCAMENTO DE TEMPO apenas — o texto e o mesmo.",
+      "o_que_a_derivacao_precisa_resolver": "apenas T1 e T2: onde cai o gancho (textoAtras), onde cai a tese (pivo D1) e quais palavras ficam douradas na primeira metade.",
+      "como_usar": "alinhar T3/T4 da peca nova contra os tempos aprovados da peca 1 por diferenca de offset, e rodar as regras de derivacao so no trecho T1+T2. O que ja foi aprovado nao se re-deriva.",
+      "mapa_dos_trechos": {
+        "T1": "a dor concreta e especifica — muda por peca",
+        "T2": "a virada + a tese (negacao terminal, as vezes fecho em tres) — muda por peca",
+        "T3": "a oferta: 'N aulas / N horas' — IGUAL em todas as pecas do lote",
+        "T4": "identidade + prova social + CTA — IGUAL em todas as pecas do lote"
+      }
+    }
+  },
+  "orquestra": {
+    "_o_que_e": "A lógica de entrada e saída de efeitos, extraída do corte final aprovado no CapCut, evento a evento. Não é suposição: é o que ele fez.",
+    "corte": {
+      "regra": "TODO corte cai no INÍCIO de uma palavra. 19 de 19 na peça aprovada. Nunca no meio de palavra, nunca no silêncio.",
+      "onde_cortar": [
+        "nas FRONTEIRAS ESTRUTURAIS: ~0,2s antes de um display abrir e logo depois de fechar",
+        "na entrada e na saída de cada janela de texto-atrás",
+        "na virada de assunto do roteiro"
+      ],
+      "exemplo_medido": "34,33 (o pivô abre 34,55) · 38,73 (fecha 38,76) · 70,57 (o D3 fecha 70,71)",
+      "gaguejo": "na batida de IDENTIDADE (o aparte de apresentação, cortado antes do nome) ele pôs CINCO cortes em 1,00s (50,60 · 51,13 · 51,27 · 51,33 · 51,43; o mais curto 0,07s), repetindo o mesmo quadro. Não é ritmo: é um REBOBINAR — tem som de fita rebobinando por baixo, a música pausa e a imagem vira P&B. Quatro camadas apontando para o mesmo lugar."
+    },
+    "zoom": {
+      "regra": "escala 1,15x PARADA no segmento inteiro — sem animação, sem clarão. Cinco corridas na peça aprovada.",
+      "nao_confundir": "o USER_REJECTED de 12/08 e 18/08 é sobre o zoom AUTOMÁTICO do motor (punch animado + flash). A prop punches continua vazia. O punch de 1,15x é gesto manual dele no CapCut.",
+      "onde": [
+        "0,00→1,37 — texto-atrás FRASE-GANCHO A (placeholder do gancho real)",
+        "7,40→8,57 — texto-atrás FRASE-GANCHO B",
+        "26,47→28,03 — a frase da promessa (sem camada de texto)",
+        "34,33→38,73 — o pivô",
+        "50,60→51,60 — o aparte de apresentação"
+      ],
+      "a_regra_por_tras": "4 das 5 coincidem quadro a quadro com uma camada de texto. O punch acompanha o momento em que a peça deixa de ser talking head; a quinta é o pico emocional.",
+      "voz_junto": "no segmento do pivô o volume do vídeo é 1,413 — a voz sobe 41% exatamente onde a música pausa. Tirar a cama e subir a voz é UM gesto."
+    },
+    "light_leak": {
+      "regra": "a passagem de luz marca FRONTEIRA DE MATERIAL — não é decoração de corte.",
+      "dois_papeis": [
+        "sobre CORTE DURO: 8 dos 12 na peça aprovada",
+        "sobre ENTRADA DE CARTÃO de prova social: os outros 4, exatos nos nomes (65,23 · 66,53 · 70,87 · 71,87)"
+      ],
+      "duracao": "0,20 a 0,23s",
+      "asset": "_biblioteca-visual/transicoes/Light Leak.mp4",
+      "confirma_a_R2": "isso é exatamente a regra R2 medida no corpus de referência — transição luminosa marca fronteira de material, não troca de plano. Agora confirmada pelo olho dele.",
+      "velocidade": "3,0x nos 12. Em velocidade normal a passagem passa de 0,6s e vira TRANSIÇÃO; a 3x dura 0,23s e vira pontuação. A velocidade é que decide o papel, não o asset.",
+      "direcao": "9 dos 12 INVERTIDOS. Os 3 normais (1,37 · 26,47 · 34,33) abrem uma corrida de zoom; os invertidos fecham corrida ou entram cartão. Normal abre, invertido fecha."
+    },
+    "som": {
+      "riser": {
+        "asset": "_biblioteca-som/efeitos-originais/RISER.wav",
+        "duracao": 3.53,
+        "volume": 0.5,
+        "regra": "⚠️ O riser resolve EM CIMA DE UM CORTE, não no fim da frase. Ele moveu de 5,27 para 5,03: com 3,53s isso resolve em 8,56, colado no corte de 8,57 e no Light Leak de 8,53. Três eventos no mesmo quadro. Eu tinha alinhado ao fim da palavra e ele corrigiu.",
+        "como_calcular": "entrada = (tempo do corte estrutural do fim da intro) - 3.53"
+      },
+      "pivo": {
+        "asset": "_biblioteca-som/efeitos-originais/flash-click-05s.wav",
+        "volume": 1.78,
+        "regra": "um por frase do pivô, entrando ~0,17s DEPOIS do bloco visual. Blocos em 34,67 · 35,84 · 37,43; cliques em 34,87 · 35,97 · 37,60.",
+        "por_que_este_som": "ele trocou a escadinha de impacto que eu tinha proposto por flash-click. Som de obturador casa com a ideia de 'flash de câmera' na virada da tese.",
+        "um_fader_por_som": "os três flash-click do pivô ocupam TRÊS trilhas dedicadas. Trilha não organiza por arquivo, organiza por CONTROLE — cada um foi ajustado sozinho."
+      },
+      "trilha": {
+        "_o_que_e": "Trilha nao e volume, e COMPOSICAO: musica cortada em pedacos, com pausas colocadas de proposito e revezamento entre camadas.",
+        "fundo": {
+          "volume": 0.056,
+          "regra": "Entra depois da intro e PAUSA nos picos dramaticos. Na peca aprovada: 3 pedacos, com pausa de 4,40s sobre o pivo e de 1,57s sobre o aparte.",
+          "como_pausar": "SILENCIAR, nao recomecar. O pedaco seguinte entra na posicao de fonte que a musica teria se nunca tivesse parado (fonte = fonte_anterior + duracao + pausa). Recomecar traz a frase musical errada de volta.",
+          "por_que": "A ausencia de musica e que marca o momento. Pivo e aparte ficam secos, e e isso que os separa do resto.",
+          "fade_in": "10,00s no primeiro pedaço, sobre 17,03s de clipe — dois terços do trecho são rampa. A trilha não entra, materializa. Fade curto em trilha de fundo denuncia a entrada."
+        },
+        "licenca": "Reels Ads: conferir antes. Trilha sem licenca nao sobe.",
+        "trilha_2_mista": {
+          "_atencao": "esta trilha carrega TRÊS materiais diferentes. Ler o material por SEGMENTO — nomear a trilha pelo primeiro material atribui o som errado ao resto.",
+          "colchao_de_intro": {
+            "material": "colchao-intro (trilha do aluno — ver SETUP)",
+            "volume": 0.1,
+            "janela": "0,00→8,57",
+            "fade": "in 3,03s / out 3,67s",
+            "papel": "cobre as duas janelas de texto-atrás e resolve junto com o riser e o corte"
+          },
+          "rebobinar_do_aparte": {
+            "material": "[Live recording] Cassette tape, rewind (biblioteca do próprio CapCut)",
+            "volume": 0.056,
+            "janela": "50,60→51,60",
+            "papel": "revezamento — entra no vão que a trilha de fundo deixou, NO MESMO VOLUME dela. Não é efeito por cima da música: é substituição. Casa com os 5 cortes de rebobinar e com o P&B."
+          },
+          "stinger_de_cartao": {
+            "material": "flash-click-05s.wav",
+            "volume": 1.778,
+            "janela": "65,30 e 66,60 (0,23s)",
+            "papel": "casado com o Light Leak de 65,23 e 66,53 — a passagem visual não é muda",
+            "em_todos_os_cartoes": "DECISÃO DELE 19/08 (peça 3): TODOS os cartões de prova levam stinger. Na peça 1 só os dois primeiros tinham, e eu havia promovido isso a regra anti-metralhadora — ele derrubou ao ver a peça 3 pronta. Deslocamento medido: entrada do cartão + 0,10s."
+          }
+        }
+      },
+      "_alternativa_densa": {
+        "_o_que_e": "O mapa que EU tinha proposto e ele refez de ouvido. Preservado porque pode servir a outra peça — mas o default é o dele, acima.",
+        "papel": "amassando-papel-04s.wav a 0,45 na entrada de cada dourada, exceto quando a dourada anterior veio há menos de 2s (anti-metralhadora)",
+        "pivo": "impacto-tom1/2/3.wav subindo de tom, 0,55 / 0,50 / 0,60",
+        "whoosh": "_biblioteca-som/efeitos-originais/WHOOSH.mp3 a 0,45, 0,16s antes da saída do pivô",
+        "impacto": "_biblioteca-som/efeitos-originais/impacto-tom1.wav a 0,40 na abertura do aparte e 0,60 na CTA"
+      },
+      "regra_geral": "sonorizar o RARO. O som pontua display, insert e pivô — nunca a virada de página da legenda (p=0,20 no teste de nulo, ou seja: indistinguível do acaso)."
+    },
+    "ordem_de_montagem": [
+      "1. o render sai com a VOZ SOZINHA — nenhum efeito queimado",
+      "2. no CapCut: corte nas fronteiras estruturais, sempre no onset da palavra",
+      "3. punch 1,15x nas corridas de ênfase — onde há camada de texto, e no pico emocional",
+      "4. Light Leak a 3x em cada corte e em cada entrada de cartão; normal abre, invertido fecha",
+      "5. RISER resolvendo no corte do fim da intro",
+      "6. flash-click nas frases do pivô, +0,17s, um fader por som",
+      "7. trilha como composição: fade longo, pausa nos picos, revezamento no vão",
+      "8. onde a música pausa, subir a voz do segmento"
+    ]
+  },
+  "capcut": {
+    "_o_que_e": "O layout da entrega final, como ficou o projeto aprovado.",
+    "trilhas": [
+      {
+        "tipo": "video",
+        "nome": "principal",
+        "conteudo": "o MP4 renderizado, cortado nas fronteiras estruturais"
+      },
+      {
+        "tipo": "video",
+        "nome": "passagens",
+        "conteudo": "Light Leak sobre cada corte e cada entrada de cartão"
+      },
+      {
+        "tipo": "audio",
+        "nome": "RISER",
+        "conteudo": "1 clipe, resolvendo no corte do fim da intro"
+      },
+      {
+        "tipo": "audio",
+        "nome": "SFX pivo",
+        "conteudo": "um clipe por frase da tese"
+      },
+      {
+        "tipo": "audio",
+        "nome": "trilha",
+        "conteudo": "1 a 2 camadas a 6-10%"
+      }
+    ],
+    "uma_trilha_por_som": "um fader por som. Foi o que permitiu ele refazer a mixagem inteira sem re-render.",
+    "travas_do_publish": "CapCut FECHADO · confirm=true explícito · destino inexistente · backup zip automático · SAFE_CAPCUT_DRAFT_ROOT no ambiente. E a regra da casa: NUNCA publicar sem confirmação dele na conversa.",
+    "raizes_de_leitura": "⚠️ o VectCut seguro só lê de media\\, jobs\\, presets\\ e assets\\generated\\. assets\\<marca>\\ NÃO é raiz — mídia para o CapCut tem de ser copiada para uma raiz permitida."
+  },
+  "portoes": [
+    {
+      "quando": "antes do render cheio",
+      "o_que": "still PNG das entradas novas para o olho dele",
+      "por_que": "79s de render para julgar 1,4s de cartão é desperdício"
+    },
+    {
+      "quando": "depois do render",
+      "o_que": "python .claude/skills/video-editor-pro/scripts/qc_video.py <mp4> --dur <s>",
+      "por_que": "exit 1 = não entrega"
+    },
+    {
+      "quando": "depois do render",
+      "o_que": "node engine/scripts/conferir-zona.mjs <mp4>",
+      "por_que": "PNG de prova da zona segura. Densidade de detalhe é PISTA, nunca veredito — textura de tecido acusa falso positivo."
+    },
+    {
+      "quando": "ao mexer em cutoutSeq ou nos gates",
+      "o_que": "still de regressão byte-idêntico numa janela que NÃO deveria mudar",
+      "por_que": "é o que prova que a mudança não encostou no que já estava aprovado"
+    },
+    {
+      "quando": "sempre",
+      "o_que": "diff contra o render anterior nos pontos de controle",
+      "por_que": "'parece igual' não é prova. Zero pixel de diferença é."
+    }
+  ],
+  "licoes_caras": {
+    "mascara_por_cor_falha_nesta_cena": "A roupa de quem fala, o fundo da cena e o dourado da marca caem na mesma faixa de cor. Me pegou 4 vezes na mesma peça. Pior caso: o emoji da bio inflou a medição do anel em 33px e me fez construir DUAS rodadas de geometria variável para compensar um problema que não existia. Medir por FORMA (largura da faixa) e validar todo detector novo contra um número medido à mão.",
+    "criterio_inverificavel_nao_e_portao": "Escrevi 'arroba >=48px' sem dizer de que span. O revisor mediu 35px, eu medi 46px, e nós dois estávamos certos medindo coisas diferentes.",
+    "bater_o_numero_pode_piorar_o_desenho": "Exigi selo com caixa alta >=52px; ao bater, o selo ficou maior que o nome da pessoa. Critério errado se corrige com o motivo, não se persegue.",
+    "achado_opcional_ainda_e_percebido": "A revisão marcou o respiro do avatar como OPCIONAL e eu segui a regra anti-over-engineering. O olho dele pegou assim mesmo.",
+    "conferir_os_olhos_nao_basta": "Achei que o cartão não cobria o rosto porque os olhos estavam livres. Cobria a boca — numa talking head isso quebra a ligação com a fala.",
+    "so_o_movimento_revela": "Stills escondem defeito de animação. O cartão chegava translúcido e lia como dissolve; só apareceu ao render um trecho e olhar quadro a quadro."
+  },
+  "_procedencia": {
+    "USER_APPROVED": [
+      "17/08 — unidade numérica na quebra de página",
+      "17/08 — displays em bloco 3D",
+      "18/08 — CAIXA ≠ TINTA (encaixe tipográfico)",
+      "18/08 — texto-atrás em múltiplas janelas, oclusão ~10%",
+      "19/08 — cartão de prova social",
+      "19/08 — a peça inteira, finalizada no CapCut"
+    ],
+    "USER_REJECTED": [
+      "12/08 — zoom lento no avatar",
+      "17/08 — véu de legibilidade",
+      "17/08 — manuscrito Caveat na legenda corrida",
+      "17/08 — display vazado e sólido translúcido",
+      "17/08 — serifa fina com contorno no texto-atrás",
+      "18/08 — punch-zoom e clique de câmera",
+      "19/08 — tarja de emissora sob o cartão"
+    ]
+  }
+}

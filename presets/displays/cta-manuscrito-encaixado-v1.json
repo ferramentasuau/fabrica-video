@@ -1,0 +1,55 @@
+{
+  "id": "cta-manuscrito-encaixado-v1",
+  "nome": "CTA manuscrita 3D com encaixe de puzzle",
+  "aprovado": "18/08/2026 (still cta-baixo-a) — 11 rodadas de ajuste",
+  "serve_para": "chamada final de qualquer peça vertical; duas linhas curtas, a de cima encaixada no vão da de baixo",
+  "_como_usar": [
+    "1. Copie o bloco `display` para o manifest e troque os TEXTOS.",
+    "2. Reescreva `encaixarEntre.de` e `.ate`: são PREFIXOS do texto da linha 2.",
+    "   `de` = prefixo cuja PRÓXIMA letra é onde a linha de cima começa;",
+    "   `ate` = prefixo cuja ÚLTIMA letra é onde a linha de cima termina.",
+    "   Ex.: em 'Saiba mais', de='Saib' (começa no a) · ate='Saiba ma' (para no a de mais).",
+    "3. Se a fonte for outra, RODE o medidor antes (senão o encaixe não bate):",
+    "   node engine/scripts/medir-largura-fonte.mjs <fonte.woff2> engine/src/lib/larguras-<slug>.json",
+    "   e registre a família em engine/src/lib/larguras.ts.",
+    "4. Calibre só 2 números no still: `puxaEsquerdaEm` (avanço sobre a caixa do",
+    "   vizinho) e `espacoTintaEm` (altura). O resto é derivado."
+  ],
+  "_por_que_cada_numero": {
+    "espacoTintaEm": "vão VERTICAL medido entre as TINTAS, não entre as caixas. Negativo = a linha de cima desce para dentro do vão da de baixo. Em manuscrito a caixa tem ~60px de ar, então % do corpo não move nada.",
+    "puxaEsquerdaEm": "invade a caixa do glifo vizinho. A caixa é retângulo, o desenho não: no 'b' a barriga fica embaixo e sobra vão livre na altura da outra linha.",
+    "folgaEm": "o 'quase' do quase-encostar, na horizontal.",
+    "espacoPalavraEm": "letra de mão junta mais as palavras que uma sans.",
+    "profundidade": "extrusão 3D como fração do corpo. 0.05 = fino (aprovado); acima de 0.08 vira sombra grossa."
+  },
+  "display": {
+    "estilo": "3d",
+    "ajuste": "fit",
+    "cor": "text",
+    "fontSizePx": 82,
+    "fonte": {
+      "family": "Caveat Brush",
+      "file": "_biblioteca-fontes/caveat-brush-400.woff2",
+      "weight": "400"
+    },
+    "caixa": "natural",
+    "espacoPalavraEm": -0.105,
+    "espacoTintaEm": -0.2,
+    "profundidade": 0.05,
+    "blocos": [
+      {
+        "texto": "Toca em",
+        "cor": "text",
+        "escalaLinha": 1.0,
+        "encaixarEntre": {
+          "bloco": 1,
+          "de": "Saib",
+          "ate": "Saiba ma",
+          "folgaEm": 0.015,
+          "puxaEsquerdaEm": 0.17
+        }
+      },
+      { "texto": "Saiba mais", "cor": "primary" }
+    ]
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "brand": {
+    "id": "demo",
+    "name": "Marca Demo",
+    "handle": "@marca.demo",
+    "colors": {
+      "bg": "#171A21",
+      "bg2": "#232A36",
+      "primary": "#FF6B57",
+      "accent": "#6FA8FF",
+      "text": "#F4F6FB",
+      "textMuted": "#9AA3B2",
+      "onPrimary": "#171A21"
+    },
+    "fonts": {
+      "title": {
+        "family": "Playfair Display",
+        "file": "demo/fonts/playfair-display-700.woff2",
+        "weight": "700",
+        "style": "normal",
+        "fallback": "Georgia, serif"
+      },
+      "body": {
+        "family": "Inter",
+        "file": "demo/fonts/inter-400.woff2",
+        "weight": "400",
+        "style": "normal",
+        "fallback": "system-ui, sans-serif"
+      },
+      "numbers": {
+        "family": "Inter",
+        "file": "demo/fonts/inter-800.woff2",
+        "weight": "800",
+        "style": "normal",
+        "fallback": "system-ui, sans-serif"
+      }
+    },
+    "logo": null,
+    "cta": { "text": "Fale com a gente" },
+    "safeMargins": { "top": 220, "bottom": 320, "sides": 64 }
+  },
+  "captions": [
+    { "text": "O", "startMs": 10, "endMs": 70 },
+    { "text": "nosso", "startMs": 70, "endMs": 370 },
+    { "text": "teste", "startMs": 370, "endMs": 730, "emphasis": true },
+    { "text": "vai", "startMs": 730, "endMs": 880 },
+    { "text": "começar", "startMs": 880, "endMs": 1400 },
+    { "text": "e", "startMs": 1400, "endMs": 1430 },
+    { "text": "eu", "startMs": 1430, "endMs": 1490 },
+    { "text": "vou", "startMs": 1490, "endMs": 1600 },
+    { "text": "te", "startMs": 1600, "endMs": 1650 },
+    { "text": "mostrar", "startMs": 1650, "endMs": 1750 },
+    { "text": "uma", "startMs": 1750, "endMs": 1840 },
+    { "text": "informação", "startMs": 1840, "endMs": 2280 }
+  ],
+  "durationSeconds": 2,
+  "wordsPerPage": 4,
+  "fontSizePx": 76,
+  "bottomPx": 680,
+  "caixaAlta": false,
+  "strokePx": 2,
+  "offsetMs": 100,
+  "antecipaPaginaMs": 200
+}
